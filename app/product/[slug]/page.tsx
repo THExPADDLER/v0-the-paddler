@@ -7,7 +7,7 @@ import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, Minus, Plus, Check, Truck, Shield, RotateCcw } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { getProductBySlug, products } from "@/lib/products"
+import { getProductBySlug, getRelatedProducts } from "@/lib/products"
 import { useCart } from "@/lib/cart-context"
 
 export default function ProductPage() {
@@ -18,7 +18,6 @@ export default function ProductPage() {
   const product = getProductBySlug(params.slug as string)
   
   const [selectedSize, setSelectedSize] = useState<string | null>(null)
-  const [selectedColor, setSelectedColor] = useState(product?.colors[0] || null)
   const [quantity, setQuantity] = useState(1)
   const [activeTab, setActiveTab] = useState<"details" | "care">("details")
   const [addedToCart, setAddedToCart] = useState(false)
@@ -29,7 +28,7 @@ export default function ProductPage() {
         <Header />
         <main className="pt-32 pb-20 text-center">
           <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
-          <Link href="/#shop" className="text-accent underline">
+          <Link href="/shop" className="text-accent underline">
             Back to Shop
           </Link>
         </main>
@@ -47,7 +46,7 @@ export default function ProductPage() {
       addItem({
         id: product.id,
         name: product.name,
-        description: `${selectedColor?.name || ""} / ${selectedSize}`,
+        description: `${product.color} / ${selectedSize}`,
         price: product.price,
         image: product.image,
         size: selectedSize,
@@ -66,8 +65,7 @@ export default function ProductPage() {
     if (quantity < 10) setQuantity(quantity + 1)
   }
 
-  // Get related products (excluding current)
-  const relatedProducts = products.filter((p) => p.id !== product.id).slice(0, 2)
+  const relatedProducts = getRelatedProducts(product.slug, 3)
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -114,7 +112,7 @@ export default function ProductPage() {
                 <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
                   {product.name}
                 </h1>
-                <p className="text-2xl font-medium">${product.price}</p>
+                <p className="text-2xl font-medium">&#8377;{product.price}</p>
               </div>
 
               {/* Description */}
@@ -122,30 +120,19 @@ export default function ProductPage() {
                 {product.longDescription}
               </p>
 
-              {/* Color Selection */}
+              {/* Color Display */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium">COLOR</span>
-                  <span className="text-sm text-muted-foreground">{selectedColor?.name}</span>
+                  <span className="text-sm text-muted-foreground">{product.color}</span>
                 </div>
                 <div className="flex gap-3">
-                  {product.colors.map((color) => (
-                    <button
-                      key={color.value}
-                      onClick={() => setSelectedColor(color)}
-                      className={`w-10 h-10 rounded-full border-2 transition-all flex items-center justify-center ${
-                        selectedColor?.value === color.value
-                          ? "border-accent"
-                          : "border-border hover:border-muted-foreground"
-                      }`}
-                      style={{ backgroundColor: color.hex }}
-                      title={color.name}
-                    >
-                      {selectedColor?.value === color.value && (
-                        <Check className={`w-4 h-4 ${color.value === "white" ? "text-black" : "text-white"}`} />
-                      )}
-                    </button>
-                  ))}
+                  <div
+                    className="w-10 h-10 rounded-full border-2 border-accent flex items-center justify-center"
+                    style={{ backgroundColor: product.colorHex }}
+                  >
+                    <Check className={`w-4 h-4 ${product.color === "White" || product.color === "Beige" ? "text-black" : "text-white"}`} />
+                  </div>
                 </div>
               </div>
 
@@ -162,7 +149,7 @@ export default function ProductPage() {
                     <button
                       key={size}
                       onClick={() => setSelectedSize(size)}
-                      className={`min-w-[48px] h-12 px-4 border text-sm font-medium transition-all ${
+                      className={`min-w-[60px] h-12 px-6 border text-sm font-medium transition-all ${
                         selectedSize === size
                           ? "border-accent bg-accent text-background"
                           : "border-border hover:border-foreground"
@@ -220,7 +207,7 @@ export default function ProductPage() {
                       ADDED TO CART
                     </span>
                   ) : (
-                    `ADD TO CART — $${product.price * quantity}`
+                    `ADD TO CART — ₹${product.price * quantity}`
                   )}
                 </button>
               ) : (
@@ -247,7 +234,7 @@ export default function ProductPage() {
                 <div className="text-center">
                   <Truck className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
                   <p className="text-xs text-muted-foreground">Free Shipping</p>
-                  <p className="text-xs text-muted-foreground">Orders $150+</p>
+                  <p className="text-xs text-muted-foreground">Orders ₹1500+</p>
                 </div>
                 <div className="text-center">
                   <Shield className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
@@ -256,7 +243,7 @@ export default function ProductPage() {
                 </div>
                 <div className="text-center">
                   <RotateCcw className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">14 Day</p>
+                  <p className="text-xs text-muted-foreground">7 Day</p>
                   <p className="text-xs text-muted-foreground">Returns</p>
                 </div>
               </div>
@@ -337,9 +324,9 @@ export default function ProductPage() {
                   <div className="mt-4 flex items-start justify-between">
                     <div>
                       <h3 className="text-sm font-medium">{relatedProduct.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">{relatedProduct.description}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{relatedProduct.color}</p>
                     </div>
-                    <span className="text-sm font-medium">${relatedProduct.price}</span>
+                    <span className="text-sm font-medium">&#8377;{relatedProduct.price}</span>
                   </div>
                 </Link>
               ))}

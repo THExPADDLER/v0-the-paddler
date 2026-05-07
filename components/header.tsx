@@ -13,10 +13,10 @@ export function Header() {
   const { totalItems } = useCart()
 
   const isActive = (href: string) => {
-    if (href === "/#shop") {
+    if (href === "/") {
       return pathname === "/"
     }
-    return pathname === href
+    return pathname === href || pathname.startsWith(href + "/")
   }
 
   return (
@@ -31,10 +31,21 @@ export function Header() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
             <Link 
-              href="/#shop" 
+              href="/" 
               className={cn(
                 "text-sm font-medium transition-colors",
-                isActive("/#shop") 
+                isActive("/") && !isActive("/shop") && !isActive("/about") && !isActive("/instagram")
+                  ? "text-foreground border-b border-foreground pb-0.5" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Home
+            </Link>
+            <Link 
+              href="/shop" 
+              className={cn(
+                "text-sm font-medium transition-colors",
+                isActive("/shop") || pathname.startsWith("/product")
                   ? "text-foreground border-b border-foreground pb-0.5" 
                   : "text-muted-foreground hover:text-foreground"
               )}
@@ -94,10 +105,22 @@ export function Header() {
           <nav className="md:hidden py-4 border-t border-border/50">
             <div className="flex flex-col gap-4">
               <Link 
-                href="/#shop" 
+                href="/" 
                 className={cn(
                   "text-sm font-medium transition-colors",
-                  isActive("/#shop") 
+                  isActive("/") && !isActive("/shop") && !isActive("/about") && !isActive("/instagram")
+                    ? "text-foreground" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Home
+              </Link>
+              <Link 
+                href="/shop" 
+                className={cn(
+                  "text-sm font-medium transition-colors",
+                  isActive("/shop") || pathname.startsWith("/product")
                     ? "text-foreground" 
                     : "text-muted-foreground hover:text-foreground"
                 )}

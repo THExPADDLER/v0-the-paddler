@@ -29,7 +29,7 @@ export function Hero() {
             Built for those who move different.
           </p>
           <Link
-            href="#shop"
+            href="/shop"
             className="inline-block mt-8 px-6 py-3 border border-foreground text-sm font-medium text-foreground hover:bg-foreground hover:text-background transition-colors"
           >
             SHOP NOW

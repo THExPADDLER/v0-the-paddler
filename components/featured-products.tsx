@@ -3,6 +3,9 @@ import Link from "next/link"
 import { products } from "@/lib/products"
 
 export function FeaturedProducts() {
+  // Show only 4 featured products on homepage
+  const featuredProducts = products.slice(0, 4)
+
   return (
     <section id="shop" className="py-16 sm:py-24 bg-foreground text-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -12,7 +15,7 @@ export function FeaturedProducts() {
             FEATURED DROP
           </h2>
           <Link 
-            href="#" 
+            href="/shop" 
             className="text-sm font-medium hover:underline underline-offset-4"
           >
             View All
@@ -20,8 +23,8 @@ export function FeaturedProducts() {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {featuredProducts.map((product) => (
             <Link
               key={product.id}
               href={`/product/${product.slug}`}
@@ -43,9 +46,9 @@ export function FeaturedProducts() {
               <div className="mt-4 flex items-start justify-between">
                 <div>
                   <h3 className="text-sm font-medium">{product.name}</h3>
-                  <p className="text-xs text-neutral-500 mt-0.5">{product.description}</p>
+                  <p className="text-xs text-neutral-500 mt-0.5">{product.color}</p>
                 </div>
-                <span className="text-sm font-medium">${product.price}</span>
+                <span className="text-sm font-medium">&#8377;{product.price}</span>
               </div>
             </Link>
           ))}
