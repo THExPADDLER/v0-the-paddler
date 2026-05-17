@@ -1,5 +1,6 @@
 import { Header } from "@/components/header"
 import { Hero } from "@/components/hero"
+import { DropBanner } from "@/components/drop-banner"
 import { FeaturedProducts } from "@/components/featured-products"
 import { BrandStory } from "@/components/brand-story"
 import { LimitedDrop } from "@/components/limited-drop"
@@ -11,12 +12,21 @@ export default function Home() {
   return (
     <main>
       <Header />
+
       <Hero />
+
+      <DropBanner />
+
       <FeaturedProducts />
+
       <BrandStory />
+
       <LimitedDrop />
+
       <StreetGallery />
+
       <Newsletter />
+
       <Footer />
     </main>
   )

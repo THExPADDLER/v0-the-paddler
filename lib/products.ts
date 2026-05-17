@@ -5,6 +5,7 @@ export interface Product {
   description: string
   longDescription: string
   price: number
+  mrp?: number
   image: string
   images: string[]
   badge: string | null
@@ -26,6 +27,7 @@ export const products: Product[] = [
     description: "OVERSIZED FIT",
     longDescription: "The SHADOW GEOMETRIC TEE features an abstract geometric print that speaks to the modern street aesthetic. Crafted from premium 240GSM heavyweight cotton with an oversized drop-shoulder fit that drapes perfectly. For those who appreciate minimal art with maximum impact.",
     price: 1299,
+    mrp: 1999,
     image: "/images/products/black-tee-1.jpg",
     images: ["/images/products/black-tee-1.jpg"],
     badge: "NEW ARRIVAL",
@@ -56,6 +58,7 @@ export const products: Product[] = [
     description: "OVERSIZED FIT",
     longDescription: "The VOID BACK PRINT TEE makes a statement from behind. Bold typography cascades down the back, creating a striking visual that turns heads. Premium heavyweight cotton ensures this piece holds its shape and presence wear after wear.",
     price: 1499,
+    mrp: 1999,
     image: "/images/products/black-tee-2.jpg",
     images: ["/images/products/black-tee-2.jpg"],
     badge: null,
@@ -86,6 +89,7 @@ export const products: Product[] = [
     description: "OVERSIZED FIT",
     longDescription: "The SKULL ART TEE blends street culture with artistic expression. The detailed skull graphic represents the duality of life - raw yet refined, dark yet meaningful. A bestseller that defines the PADDDLER aesthetic.",
     price: 1399,
+    mrp: 1999,
     image: "/images/products/black-tee-3.jpg",
     images: ["/images/products/black-tee-3.jpg"],
     badge: "BESTSELLER",
@@ -116,6 +120,7 @@ export const products: Product[] = [
     description: "OVERSIZED FIT",
     longDescription: "The KANJI SPIRIT TEE draws inspiration from Japanese street culture. The kanji characters embody the spirit of movement and identity that PADDDLER represents. A fusion of Eastern philosophy and Western streetwear.",
     price: 1299,
+    mrp: 1999,
     image: "/images/products/black-tee-4.jpg",
     images: ["/images/products/black-tee-4.jpg"],
     badge: null,
@@ -147,6 +152,7 @@ export const products: Product[] = [
     description: "OVERSIZED FIT",
     longDescription: "The MINIMAL LINE TEE embodies the less-is-more philosophy. Clean line art on pristine white cotton creates a subtle yet sophisticated look. Perfect for those who let their presence speak louder than their clothes.",
     price: 1199,
+    mrp: 1999,
     image: "/images/products/white-tee-1.jpg",
     images: ["/images/products/white-tee-1.jpg"],
     badge: null,
@@ -177,6 +183,7 @@ export const products: Product[] = [
     description: "OVERSIZED FIT",
     longDescription: "The URBAN GRAFFITI TEE captures the raw energy of street art. Bold graffiti-style graphics bring the walls of the city to your wardrobe. A piece that celebrates urban culture and creative rebellion.",
     price: 1399,
+    mrp: 1999,
     image: "/images/products/white-tee-2.jpg",
     images: ["/images/products/white-tee-2.jpg"],
     badge: "NEW ARRIVAL",
@@ -207,6 +214,7 @@ export const products: Product[] = [
     description: "OVERSIZED FIT",
     longDescription: "The STATEMENT BOLD TEE lets the typography do the talking. Clean white canvas meets bold black lettering for a piece that communicates without compromise. Wear your mindset.",
     price: 1299,
+    mrp: 1999,
     image: "/images/products/white-tee-3.jpg",
     images: ["/images/products/white-tee-3.jpg"],
     badge: null,
@@ -238,6 +246,7 @@ export const products: Product[] = [
     description: "OVERSIZED FIT",
     longDescription: "The FOREST VINTAGE TEE brings nature into streetwear. Deep emerald green meets vintage-inspired graphics in cream tones. A limited piece for those who find strength in the wild.",
     price: 1499,
+    mrp: 1999,
     image: "/images/products/green-tee-1.jpg",
     images: ["/images/products/green-tee-1.jpg"],
     badge: "LIMITED",
@@ -268,6 +277,7 @@ export const products: Product[] = [
     description: "OVERSIZED FIT",
     longDescription: "The EMERALD LOGO TEE is understated luxury. Rich emerald fabric with subtle embroidered logo placement. For those who know that true style whispers rather than shouts.",
     price: 1199,
+    mrp: 1999,
     image: "/images/products/green-tee-2.jpg",
     images: ["/images/products/green-tee-2.jpg"],
     badge: null,
@@ -299,6 +309,7 @@ export const products: Product[] = [
     description: "OVERSIZED FIT",
     longDescription: "The EARTH NATURE TEE is an exclusive piece inspired by the raw beauty of nature. Warm beige tones with earth-inspired artistic prints create a unique piece that stands apart from the crowd.",
     price: 1399,
+    mrp: 1999,
     image: "/images/products/beige-tee-1.jpg",
     images: ["/images/products/beige-tee-1.jpg"],
     badge: "EXCLUSIVE",
