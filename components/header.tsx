@@ -87,13 +87,13 @@ export function Header() {
     <>
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/85 backdrop-blur-md border-b border-border/50">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="h-16 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="grid h-16 grid-cols-[88px_1fr_88px] items-center gap-2 sm:flex sm:justify-between sm:gap-0">
+            <div className="flex items-center gap-2 justify-start">
               {pathname !== "/" && (
                 <button
                   type="button"
                   onClick={handleBack}
-                  className="p-2 hover:bg-secondary rounded-sm transition-colors"
+                  className="hidden sm:block p-2 hover:bg-secondary rounded-sm transition-colors"
                   aria-label="Go back"
                 >
                   <ArrowLeft className="w-6 h-6" />
@@ -109,52 +109,54 @@ export function Header() {
                 className="p-2 hover:bg-secondary rounded-sm transition-colors"
                 aria-label="Open menu"
               >
-                {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                {menuOpen ? <X className="w-7 h-7 sm:w-6 sm:h-6" /> : <Menu className="w-7 h-7 sm:w-6 sm:h-6" />}
               </button>
             </div>
 
             <Link
               href="/"
               onClick={closeAll}
-              className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center overflow-visible"
+              className="flex min-w-0 items-center justify-center overflow-visible sm:absolute sm:left-1/2 sm:-translate-x-1/2"
             >
               <Image
                 src="/images/paddler-logo-removedbg.png"
                 alt="THE PADDLER"
                 width={320}
                 height={104}
-                className="object-contain h-20 w-auto -my-2"
+                className="object-contain h-16 w-auto max-w-[190px] -my-1 sm:h-20 sm:max-w-none sm:-my-2"
                 priority
               />
             </Link>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-end gap-2 sm:gap-3">
               <button
                 onClick={() => {
                   setSearchOpen(true)
                   setMenuOpen(false)
                   setProfileOpen(false)
                 }}
-                className="relative p-2 hover:bg-secondary rounded-sm transition-colors"
+                className="relative hidden p-2 hover:bg-secondary rounded-sm transition-colors sm:block"
                 aria-label="Search"
               >
                 <Search className="w-5 h-5" />
               </button>
 
-              <Link
-                href="/wishlist"
-                onClick={closeAll}
-                className="relative p-2 hover:bg-secondary rounded-sm transition-colors"
-                aria-label="Wishlist"
-              >
-                <Heart className="w-5 h-5" />
+              {user && (
+                <Link
+                  href="/wishlist"
+                  onClick={closeAll}
+                  className="relative hidden p-2 hover:bg-secondary rounded-sm transition-colors sm:block"
+                  aria-label="Wishlist"
+                >
+                  <Heart className="w-5 h-5" />
 
-                {totalWishlistItems > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                    {totalWishlistItems}
-                  </span>
-                )}
-              </Link>
+                  {totalWishlistItems > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                      {totalWishlistItems}
+                    </span>
+                  )}
+                </Link>
+              )}
 
               <Link
                 href="/cart"
@@ -162,7 +164,7 @@ export function Header() {
                 className="relative p-2 hover:bg-secondary rounded-sm transition-colors"
                 aria-label="Cart"
               >
-                <ShoppingCart className="w-5 h-5" />
+                <ShoppingCart className="w-6 h-6 sm:w-5 sm:h-5" />
 
                 {totalItems > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-accent text-background text-xs font-bold rounded-full flex items-center justify-center">
@@ -181,7 +183,7 @@ export function Header() {
                   className="p-2 hover:bg-secondary rounded-sm transition-colors"
                   aria-label="Profile"
                 >
-                  <User className="w-5 h-5" />
+                  <User className="w-6 h-6 sm:w-5 sm:h-5" />
                 </button>
 
                 {profileOpen && (
