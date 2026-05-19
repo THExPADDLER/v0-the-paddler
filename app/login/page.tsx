@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import {
   GoogleAuthProvider,
+  getRedirectResult,
   signInWithPopup,
+  signInWithRedirect,
   signInWithEmailAndPassword,
 } from "firebase/auth";
 
@@ -20,11 +22,40 @@ export default function LoginPage() {
     setRedirectQuery(window.location.search);
   }, []);
 
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          router.push(getRedirectPath());
+        }
+      })
+      .catch((error: any) => {
+        console.error("GOOGLE REDIRECT ERROR:", error);
+        alert(getGoogleAuthMessage(error));
+      });
+  }, [router]);
+
   const getRedirectPath = () => {
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get("redirect");
 
     return redirect && redirect.startsWith("/") ? redirect : "/";
+  };
+
+  const getGoogleAuthMessage = (error: any) => {
+    if (error?.code === "auth/unauthorized-domain") {
+      return "Google login is not enabled for this website domain yet. Add this Vercel domain in Firebase Authorized domains.";
+    }
+
+    if (error?.code === "auth/popup-blocked") {
+      return "Popup was blocked. Opening Google login in the same tab.";
+    }
+
+    if (error?.code === "auth/popup-closed-by-user") {
+      return "Google login was closed before completion.";
+    }
+
+    return error?.message || "Google Login Failed";
   };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -51,9 +82,19 @@ export default function LoginPage() {
       console.log("Google login user:", result.user);
       alert("Google Login Success");
       router.push(getRedirectPath());
-    } catch (error) {
+    } catch (error: any) {
       console.error("GOOGLE ERROR:", error);
-      alert("Google Login Failed");
+
+      if (
+        error?.code === "auth/popup-blocked" ||
+        error?.code === "auth/cancelled-popup-request" ||
+        /mobile|android|iphone|ipad/i.test(navigator.userAgent)
+      ) {
+        await signInWithRedirect(auth, new GoogleAuthProvider());
+        return;
+      }
+
+      alert(getGoogleAuthMessage(error));
     }
   };
 

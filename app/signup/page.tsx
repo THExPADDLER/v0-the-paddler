@@ -6,7 +6,9 @@ import { auth } from "@/lib/firebase";
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
+  getRedirectResult,
   signInWithPopup,
+  signInWithRedirect,
   updateProfile,
 } from "firebase/auth";
 
@@ -24,11 +26,40 @@ export default function SignupPage() {
     setRedirectQuery(window.location.search);
   }, []);
 
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          router.push(getRedirectPath());
+        }
+      })
+      .catch((error: any) => {
+        console.error("GOOGLE SIGNUP REDIRECT ERROR:", error);
+        alert(getGoogleAuthMessage(error));
+      });
+  }, [router]);
+
   const getRedirectPath = () => {
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get("redirect");
 
     return redirect && redirect.startsWith("/") ? redirect : "/";
+  };
+
+  const getGoogleAuthMessage = (error: any) => {
+    if (error?.code === "auth/unauthorized-domain") {
+      return "Google signup is not enabled for this website domain yet. Add this Vercel domain in Firebase Authorized domains.";
+    }
+
+    if (error?.code === "auth/popup-blocked") {
+      return "Popup was blocked. Opening Google signup in the same tab.";
+    }
+
+    if (error?.code === "auth/popup-closed-by-user") {
+      return "Google signup was closed before completion.";
+    }
+
+    return error?.message || "Google Signup Failed";
   };
 
   const handleEmailSignup = async (e: React.FormEvent) => {
@@ -72,9 +103,19 @@ export default function SignupPage() {
       setTimeout(() => {
         router.push(getRedirectPath());
       }, 800);
-    } catch (error) {
+    } catch (error: any) {
       console.error("GOOGLE SIGNUP ERROR:", error);
-      alert("Google Signup Failed");
+
+      if (
+        error?.code === "auth/popup-blocked" ||
+        error?.code === "auth/cancelled-popup-request" ||
+        /mobile|android|iphone|ipad/i.test(navigator.userAgent)
+      ) {
+        await signInWithRedirect(auth, new GoogleAuthProvider());
+        return;
+      }
+
+      alert(getGoogleAuthMessage(error));
     }
   };
 
