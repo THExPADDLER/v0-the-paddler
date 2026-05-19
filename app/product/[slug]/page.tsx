@@ -180,6 +180,9 @@ export default function ProductPage() {
     product.stock > 0 &&
     product.stock <= 5
   const displayMrp = getDisplayMrp(product)
+  const discountPercent = displayMrp
+    ? Math.round(((displayMrp - product.price) / displayMrp) * 100)
+    : 0
 
   const handleWishlist = () => {
     if (saved) {
@@ -411,6 +414,12 @@ export default function ProductPage() {
                     <p className="relative inline-block text-base sm:text-lg text-muted-foreground pb-1">
                       <span className="absolute left-0 right-0 top-1/2 h-[3px] -translate-y-1/2 bg-white z-10" />
                       MRP ₹{displayMrp}
+                    </p>
+                  )}
+
+                  {discountPercent > 0 && (
+                    <p className="pb-1 text-sm sm:text-base font-black text-green-400">
+                      {discountPercent}% OFF
                     </p>
                   )}
                 </div>

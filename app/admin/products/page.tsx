@@ -190,9 +190,9 @@ export default function AdminProductsPage() {
 
                       <div className="flex gap-3">
                         <Link
-                          href={`/product/${product.slug}`}
+                          href={`/admin/edit-product/${product.slug}`}
                           className="p-2 border border-border hover:bg-secondary"
-                          aria-label="View product"
+                          aria-label="Edit product"
                         >
                           <Edit className="w-4 h-4" />
                         </Link>
