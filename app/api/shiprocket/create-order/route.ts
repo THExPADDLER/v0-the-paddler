@@ -1,26 +1,31 @@
 import { NextResponse } from "next/server"
 
-import { createShiprocketShipmentForOrder } from "@/lib/shiprocket"
+import {
+  createShiprocketShipment,
+  createShiprocketShipmentForOrder,
+} from "@/lib/shiprocket"
 
 export async function POST(request: Request) {
   try {
-    const { orderId } = await request.json()
+    const { orderId, order } = await request.json()
 
-    if (!orderId) {
+    if (!orderId && !order?.id) {
       return NextResponse.json(
         {
           ok: false,
-          message: "orderId is required.",
+          message: "orderId or order is required.",
         },
         { status: 400 }
       )
     }
 
-    const shipment = await createShiprocketShipmentForOrder(orderId)
+    const shipment = order
+      ? await createShiprocketShipment(order)
+      : await createShiprocketShipmentForOrder(orderId)
 
     return NextResponse.json({
       ok: true,
-      orderId,
+      orderId: order?.id || orderId,
       shipment,
     })
   } catch (error) {

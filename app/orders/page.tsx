@@ -167,6 +167,13 @@ export default function OrdersPage() {
         return
       }
 
+      if (data.needsManualVerification) {
+        alert(
+          "PhonePe could not return a readable status to the website. If money is deducted, our team will verify it in the PhonePe dashboard and confirm the order."
+        )
+        return
+      }
+
       alert(`Current payment status: ${formatStatus(data.paymentStatus || "pending")}`)
     } catch (error) {
       console.error("PAYMENT STATUS REFRESH ERROR:", error)

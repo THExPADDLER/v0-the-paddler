@@ -352,6 +352,27 @@ export const createShiprocketShipmentForOrder = async (orderId: string) => {
     return order.shipment
   }
 
+  const shipment = await createShiprocketShipment(order)
+
+  await updateDoc(orderRef, {
+    shipment,
+    trackingId: shipment.awb || shipment.shipmentId,
+    trackingUrl: shipment.trackingUrl,
+    status: "processing",
+    updatedAt: new Date().toISOString(),
+  })
+
+  console.info("SHIPROCKET SHIPMENT SAVED:", {
+    orderId,
+    shipmentId: shipment.shipmentId,
+    awb: shipment.awb,
+  })
+
+  return shipment
+}
+
+export const createShiprocketShipment = async (order: PaddlerOrder) => {
+  const orderId = order.id
   const orderPayload = buildShiprocketOrderPayload(order)
   console.info("SHIPROCKET CREATE ORDER START:", { orderId })
 
@@ -411,15 +432,7 @@ export const createShiprocketShipmentForOrder = async (orderId: string) => {
     updatedAt: new Date().toISOString(),
   }
 
-  await updateDoc(orderRef, {
-    shipment,
-    trackingId: awb || shipmentId,
-    trackingUrl,
-    status: "processing",
-    updatedAt: new Date().toISOString(),
-  })
-
-  console.info("SHIPROCKET SHIPMENT SAVED:", {
+  console.info("SHIPROCKET SHIPMENT CREATED:", {
     orderId,
     shipmentId,
     awb,

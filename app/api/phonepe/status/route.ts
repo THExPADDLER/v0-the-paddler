@@ -180,7 +180,8 @@ export async function GET(request: Request) {
       12000
     )
 
-    const statusData = await statusResponse.json().catch(() => null)
+    const statusText = await statusResponse.text().catch(() => "")
+    const statusData = statusText ? JSON.parse(statusText) : null
 
     if (!statusResponse.ok) {
       console.error("PHONEPE STATUS ERROR:", statusData)
@@ -193,6 +194,19 @@ export async function GET(request: Request) {
         },
         { status: 502 }
       )
+    }
+
+    if (!statusData) {
+      return NextResponse.json({
+        ok: true,
+        orderId,
+        status: "pending_payment",
+        paymentStatus: "pending",
+        phonepeState: "NO_STATUS_BODY",
+        needsManualVerification: true,
+        message:
+          "PhonePe returned no status body. Verify the transaction in PhonePe dashboard, then mark it paid from admin if it is completed.",
+      })
     }
 
     const state = pickPaymentState(statusData)

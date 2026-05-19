@@ -5,7 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Lock, MapPin, Tag, Truck } from "lucide-react"
-import { addDoc, collection, doc, getDoc } from "firebase/firestore"
+import { addDoc, collection, doc, getDoc, updateDoc } from "firebase/firestore"
 
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
@@ -262,6 +262,17 @@ export default function CheckoutPage() {
         router.push("/orders")
         return
       }
+
+      await updateDoc(orderRef, {
+        "payment.phonepeOrderId":
+          data?.phonepe?.orderId ||
+          data?.phonepe?.data?.orderId ||
+          data?.phonepe?.merchantOrderId ||
+          data?.merchantOrderId ||
+          orderRef.id,
+        "payment.phonepeResponse": data?.phonepe || null,
+        updatedAt: new Date().toISOString(),
+      })
 
       clearCart()
       window.location.href = data.redirectUrl
