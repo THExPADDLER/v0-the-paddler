@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { CheckCircle2, Clock3, Package, Truck } from "lucide-react"
+import { CheckCircle2, Clock3, Package, RefreshCcw, Truck } from "lucide-react"
 import {
   collection,
   doc,
@@ -45,6 +45,8 @@ type AdminOrder = {
     gateway?: string
   }
   status?: string
+  inventoryDeducted?: boolean
+  inventoryError?: string | null
   shipment?: {
     awb?: string
     shipmentId?: string
@@ -65,6 +67,7 @@ export default function AdminOrdersPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [checkingPaymentId, setCheckingPaymentId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [deductingInventoryId, setDeductingInventoryId] = useState<string | null>(null)
 
   const fetchOrders = async () => {
     try {
@@ -211,6 +214,41 @@ export default function AdminOrdersPage() {
     }
   }
 
+  const retryInventoryDeduction = async (order: AdminOrder) => {
+    if (order.payment?.status !== "success") {
+      alert("Payment is not successful yet.")
+      return
+    }
+
+    setDeductingInventoryId(order.id)
+
+    try {
+      const response = await fetch("/api/inventory/deduct", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          orderId: order.id,
+        }),
+      })
+      const data = await response.json()
+
+      if (!response.ok || !data?.ok) {
+        alert(data?.message || "Unable to deduct inventory.")
+        return
+      }
+
+      await fetchOrders()
+      alert(data.message || "Inventory deducted successfully.")
+    } catch (error) {
+      console.error("ADMIN INVENTORY DEDUCT ERROR:", error)
+      alert("Unable to deduct inventory.")
+    } finally {
+      setDeductingInventoryId(null)
+    }
+  }
+
   return (
     <ProtectedRoute adminOnly>
       <>
@@ -340,6 +378,34 @@ export default function AdminOrdersPage() {
                           )}
                         </div>
 
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            INVENTORY
+                          </p>
+                          {order.inventoryDeducted ? (
+                            <p className="font-black text-green-400">
+                              Deducted
+                            </p>
+                          ) : order.inventoryError ? (
+                            <>
+                              <p className="font-black text-red-400">
+                                Error
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {order.inventoryError}
+                              </p>
+                            </>
+                          ) : isPaid ? (
+                            <p className="font-black text-yellow-400">
+                              Pending
+                            </p>
+                          ) : (
+                            <p className="font-black text-muted-foreground">
+                              Waiting payment
+                            </p>
+                          )}
+                        </div>
+
                         <div className="flex flex-wrap gap-3">
                           <button
                             onClick={() => updateStatus(order, "processing")}
@@ -394,6 +460,20 @@ export default function AdminOrdersPage() {
                               {checkingPaymentId === order.id
                                 ? "Checking..."
                                 : "Check Payment"}
+                            </button>
+                          )}
+
+                          {isPaid && !order.inventoryDeducted && (
+                            <button
+                              type="button"
+                              onClick={() => retryInventoryDeduction(order)}
+                              disabled={deductingInventoryId === order.id}
+                              className="px-4 py-3 border border-border text-sm font-black hover:bg-secondary disabled:opacity-50 flex items-center gap-2"
+                            >
+                              <RefreshCcw className="w-4 h-4" />
+                              {deductingInventoryId === order.id
+                                ? "Deducting..."
+                                : "Deduct Inventory"}
                             </button>
                           )}
 

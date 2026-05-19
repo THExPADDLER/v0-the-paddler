@@ -18,28 +18,10 @@ export function Footer() {
           {/* Links */}
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-2">
             <Link 
-              href="#" 
+              href="/terms-and-conditions" 
               className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              Terms
-            </Link>
-            <Link 
-              href="#" 
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Privacy
-            </Link>
-            <Link 
-              href="#" 
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Shipping
-            </Link>
-            <Link 
-              href="#" 
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Returns
+              Terms & Conditions
             </Link>
           </div>
         </div>

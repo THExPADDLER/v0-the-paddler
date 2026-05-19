@@ -190,6 +190,7 @@ export async function GET(request: Request) {
           await updateDoc(orderRef, {
             inventoryDeducted: true,
             inventoryDeductedAt: new Date().toISOString(),
+            inventoryError: null,
           })
         }
       } catch (error) {
@@ -200,6 +201,10 @@ export async function GET(request: Request) {
         console.error("INVENTORY AFTER PAYMENT ERROR:", {
           orderId,
           error,
+        })
+        await updateDoc(doc(db, "orders", orderId), {
+          inventoryError,
+          updatedAt: new Date().toISOString(),
         })
       }
 
