@@ -97,15 +97,9 @@ export default function AdminOrdersPage() {
 
   const updateStatus = async (order: AdminOrder, status: string) => {
     const paymentStatus = order.payment?.status || "pending"
-    const needsShipment = ["shipped", "in_transit", "delivered"].includes(status)
 
     if (paymentStatus !== "success") {
       alert("Payment is not successful yet. Check payment status before updating this order.")
-      return
-    }
-
-    if (needsShipment && !order.shipment?.awb && !order.shipment?.shipmentId) {
-      alert("Shipment is not created yet. Create/check Shiprocket shipment first.")
       return
     }
 
@@ -199,7 +193,11 @@ export default function AdminOrdersPage() {
     setCancellingId(order.id)
 
     try {
-      const response = await fetch("/api/phonepe/refund", {
+      const response = await fetch(
+        order.payment?.gateway === "razorpay"
+          ? "/api/razorpay/refund"
+          : "/api/phonepe/refund",
+        {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -210,7 +208,8 @@ export default function AdminOrdersPage() {
           reason: "Admin cancelled from order panel",
           cancelledBy: "admin",
         }),
-      })
+        }
+      )
       const data = await response.json()
 
       await fetchOrders()
@@ -380,10 +379,6 @@ export default function AdminOrdersPage() {
                   const firstItem = order.items?.[0]
                   const paymentStatus = order.payment?.status || "pending"
                   const isPaid = paymentStatus === "success"
-                  const hasShipment = Boolean(
-                    order.shipment?.awb || order.shipment?.shipmentId
-                  )
-
                   return (
                     <div
                       key={order.id}
@@ -522,7 +517,7 @@ export default function AdminOrdersPage() {
 
                           <button
                             onClick={() => updateStatus(order, "shipped")}
-                            disabled={updatingId === order.id || !isPaid || !hasShipment}
+                            disabled={updatingId === order.id || !isPaid}
                             className="px-4 py-3 border border-border text-sm font-black hover:bg-secondary flex items-center gap-2 disabled:opacity-50"
                           >
                             <Truck className="w-4 h-4" />
@@ -531,7 +526,7 @@ export default function AdminOrdersPage() {
 
                           <button
                             onClick={() => updateStatus(order, "in_transit")}
-                            disabled={updatingId === order.id || !isPaid || !hasShipment}
+                            disabled={updatingId === order.id || !isPaid}
                             className="px-4 py-3 border border-border text-sm font-black hover:bg-secondary flex items-center gap-2 disabled:opacity-50"
                           >
                             <Package className="w-4 h-4" />
@@ -540,7 +535,7 @@ export default function AdminOrdersPage() {
 
                           <button
                             onClick={() => updateStatus(order, "delivered")}
-                            disabled={updatingId === order.id || !isPaid || !hasShipment}
+                            disabled={updatingId === order.id || !isPaid}
                             className="px-4 py-3 bg-foreground text-background text-sm font-black hover:bg-foreground/90 flex items-center gap-2 disabled:opacity-50"
                           >
                             <CheckCircle2 className="w-4 h-4" />

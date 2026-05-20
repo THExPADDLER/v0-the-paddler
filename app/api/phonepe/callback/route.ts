@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
 import crypto from "crypto"
-import { collection, doc, getDoc, getDocs, query, updateDoc, where } from "firebase/firestore"
+import { collection, doc, getDoc, getDocs, query, runTransaction, updateDoc, where } from "firebase/firestore/lite"
 
-import { db } from "@/lib/firebase"
+import { serverDb } from "@/lib/firebase-server"
 import { createShiprocketShipmentForOrder } from "@/lib/shiprocket"
-import { deductSharedInventoryForItems } from "@/lib/inventory"
+import { createInventoryKey, emptySizeStock, type SizeStock } from "@/lib/inventory"
 
 const getWebhookCredentials = () => ({
   username: process.env.PHONEPE_WEBHOOK_USERNAME || "",
@@ -59,6 +59,8 @@ const isWebhookAuthorized = (request: Request) => {
   const receivedHash = authHeader
     .replace(/^SHA256\s+/i, "")
     .replace(/^sha256=/i, "")
+    .replace(/^SHA256\(/i, "")
+    .replace(/\)$/i, "")
     .trim()
 
   return (
@@ -153,17 +155,89 @@ const syncInvoicePayment = async (
   phonepeState: string
 ) => {
   const invoicesQuery = query(
-    collection(db, "invoices"),
+    collection(serverDb, "invoices"),
     where("orderId", "==", orderId)
   )
   const invoiceSnap = await getDocs(invoicesQuery)
 
   await Promise.all(
     invoiceSnap.docs.map((invoiceDoc) =>
-      updateDoc(doc(db, "invoices", invoiceDoc.id), {
+      updateDoc(doc(serverDb, "invoices", invoiceDoc.id), {
         paymentStatus,
         phonepeState,
         updatedAt: new Date().toISOString(),
+      })
+    )
+  )
+}
+
+const deductSharedInventoryForItemsServer = async (
+  items: Array<{
+    description?: string
+    quantity?: number
+    size?: string
+    color?: string
+  }>
+) => {
+  const grouped = items.reduce<Record<string, { color: string; sizes: SizeStock }>>(
+    (acc, item) => {
+      const color = item.color || item.description?.split("/")[0]?.trim() || ""
+      const key = createInventoryKey(color)
+
+      if (!key || !item.size) return acc
+
+      if (!acc[key]) {
+        acc[key] = {
+          color,
+          sizes: {},
+        }
+      }
+
+      acc[key].sizes[item.size] =
+        Number(acc[key].sizes[item.size] || 0) + Number(item.quantity || 0)
+
+      return acc
+    },
+    {}
+  )
+
+  await Promise.all(
+    Object.entries(grouped).map(([key, group]) =>
+      runTransaction(serverDb, async (transaction) => {
+        const inventoryRef = doc(serverDb, "inventory", key)
+        const snapshot = await transaction.get(inventoryRef)
+        const currentStock = snapshot.exists()
+          ? ((snapshot.data().stockBySize || {}) as SizeStock)
+          : emptySizeStock
+
+        const nextStock: SizeStock = {
+          ...emptySizeStock,
+          ...currentStock,
+        }
+
+        Object.entries(group.sizes).forEach(([size, quantity]) => {
+          if (Number(nextStock[size] || 0) < quantity) {
+            throw new Error(
+              `Insufficient ${group.color} stock in size ${size}.`
+            )
+          }
+
+          nextStock[size] = Math.max(0, Number(nextStock[size] || 0) - quantity)
+        })
+
+        transaction.set(
+          inventoryRef,
+          {
+            color: group.color,
+            stockBySize: nextStock,
+            stock: Object.values(nextStock).reduce(
+              (sum, value) => sum + Number(value || 0),
+              0
+            ),
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        )
       })
     )
   )
@@ -175,12 +249,12 @@ const runSuccessSideEffects = async (orderId: string) => {
   let shipmentError = null
 
   try {
-    const orderRef = doc(db, "orders", orderId)
+    const orderRef = doc(serverDb, "orders", orderId)
     const orderSnap = await getDoc(orderRef)
     const order = orderSnap.exists() ? orderSnap.data() : null
 
     if (order && order.inventoryDeducted !== true) {
-      await deductSharedInventoryForItems(order.items || [])
+      await deductSharedInventoryForItemsServer(order.items || [])
       await updateDoc(orderRef, {
         inventoryDeducted: true,
         inventoryDeductedAt: new Date().toISOString(),
@@ -193,7 +267,7 @@ const runSuccessSideEffects = async (orderId: string) => {
         ? error.message
         : "Unable to deduct shared inventory."
     console.error("PHONEPE CALLBACK INVENTORY ERROR:", { orderId, error })
-    await updateDoc(doc(db, "orders", orderId), {
+    await updateDoc(doc(serverDb, "orders", orderId), {
       inventoryError,
       updatedAt: new Date().toISOString(),
     })
@@ -208,7 +282,7 @@ const runSuccessSideEffects = async (orderId: string) => {
         : "Unable to create Shiprocket shipment."
     console.error("PHONEPE CALLBACK SHIPROCKET ERROR:", { orderId, error })
 
-    await updateDoc(doc(db, "orders", orderId), {
+    await updateDoc(doc(serverDb, "orders", orderId), {
       shipmentError,
       updatedAt: new Date().toISOString(),
     })
@@ -264,7 +338,7 @@ export async function POST(request: Request) {
     ])
 
     if (merchantOrderId) {
-      await updateDoc(doc(db, "orders", merchantOrderId), {
+      await updateDoc(doc(serverDb, "orders", merchantOrderId), {
         status: orderStatus,
         "payment.status": paymentStatus,
         "payment.phonepeState": phonepeState,

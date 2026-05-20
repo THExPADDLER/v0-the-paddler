@@ -1,6 +1,6 @@
-import { doc, getDoc, updateDoc } from "firebase/firestore"
+import { doc, getDoc, updateDoc } from "firebase/firestore/lite"
 
-import { db } from "@/lib/firebase"
+import { serverDb } from "@/lib/firebase-server"
 import type { CartItem } from "@/lib/cart-context"
 
 type OrderAddress = {
@@ -328,7 +328,7 @@ const extractCourierName = (data: Record<string, unknown>) => {
 }
 
 export const createShiprocketShipmentForOrder = async (orderId: string) => {
-  const orderRef = doc(db, "orders", orderId)
+  const orderRef = doc(serverDb, "orders", orderId)
   const orderSnap = await getDoc(orderRef)
 
   if (!orderSnap.exists()) {
@@ -472,7 +472,7 @@ export const checkShiprocketServiceability = async (deliveryPostcode: string) =>
 }
 
 export const createShiprocketReturnForOrder = async (orderId: string) => {
-  const orderRef = doc(db, "orders", orderId)
+  const orderRef = doc(serverDb, "orders", orderId)
   const orderSnap = await getDoc(orderRef)
 
   if (!orderSnap.exists()) {

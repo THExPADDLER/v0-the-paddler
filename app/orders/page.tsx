@@ -294,7 +294,11 @@ export default function OrdersPage() {
     setCancellingOrderId(order.id)
 
     try {
-      const response = await fetch("/api/phonepe/refund", {
+      const response = await fetch(
+        order.payment?.gateway === "razorpay"
+          ? "/api/razorpay/refund"
+          : "/api/phonepe/refund",
+        {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -305,7 +309,8 @@ export default function OrdersPage() {
           reason: "Customer cancelled from orders page",
           cancelledBy: "customer",
         }),
-      })
+        }
+      )
       const data = await response.json()
 
       await fetchOrders()
@@ -389,10 +394,10 @@ export default function OrdersPage() {
                       ? "Payment Failed"
                       : "Payment Pending",
                     message: paymentComplete
-                      ? "Payment has been confirmed by PhonePe."
+                      ? "Payment has been confirmed."
                       : paymentFailed
                       ? "Payment failed. Please contact support or try again."
-                      : "Waiting for PhonePe confirmation.",
+                      : "Waiting for payment confirmation.",
                     complete: paymentComplete,
                     failed: paymentFailed,
                     icon: paymentComplete ? CheckCircle2 : Clock3,

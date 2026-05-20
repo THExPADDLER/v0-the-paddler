@@ -26,6 +26,57 @@ type Address = {
   type: string
 }
 
+type RazorpayCheckoutResponse = {
+  razorpay_order_id: string
+  razorpay_payment_id: string
+  razorpay_signature: string
+}
+
+type RazorpayOptions = {
+  key: string
+  amount: number
+  currency: string
+  name: string
+  description: string
+  order_id: string
+  prefill: {
+    name: string
+    email: string
+    contact: string
+  }
+  notes: Record<string, string>
+  theme: {
+    color: string
+  }
+  modal: {
+    ondismiss: () => void
+  }
+  handler: (response: RazorpayCheckoutResponse) => void
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => {
+      open: () => void
+    }
+  }
+}
+
+const loadRazorpayCheckout = () => {
+  return new Promise<boolean>((resolve) => {
+    if (window.Razorpay) {
+      resolve(true)
+      return
+    }
+
+    const script = document.createElement("script")
+    script.src = "https://checkout.razorpay.com/v1/checkout.js"
+    script.onload = () => resolve(true)
+    script.onerror = () => resolve(false)
+    document.body.appendChild(script)
+  })
+}
+
 const createInvoiceNumber = () => {
   const now = new Date()
   const datePart = [
@@ -221,7 +272,7 @@ export default function CheckoutPage() {
           total,
         },
         payment: {
-          gateway: "phonepe",
+          gateway: "razorpay",
           status: "pending",
         },
         status: "pending_payment",
@@ -239,13 +290,13 @@ export default function CheckoutPage() {
         createdAt: new Date().toISOString(),
       })
 
-      const response = await fetch("/api/phonepe/create-order", {
+      const response = await fetch("/api/razorpay/create-order", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          merchantOrderId: orderRef.id,
+          orderId: orderRef.id,
           amount: total,
           customer: {
             email: user.email || "",
@@ -256,26 +307,87 @@ export default function CheckoutPage() {
 
       const data = await response.json()
 
-      if (!response.ok || !data?.redirectUrl) {
-        console.error("PHONEPE CREATE PAYMENT ERROR:", data)
-        alert("Order created, but PhonePe payment could not start. You can retry payment from orders later.")
+      if (!response.ok || !data?.razorpayOrderId || !data?.keyId) {
+        console.error("RAZORPAY CREATE PAYMENT ERROR:", data)
+        alert(
+          data?.message ||
+            "Order created, but Razorpay payment could not start. Please contact support."
+        )
         router.push("/orders")
         return
       }
 
-      await updateDoc(orderRef, {
-        "payment.phonepeOrderId":
-          data?.phonepe?.orderId ||
-          data?.phonepe?.data?.orderId ||
-          data?.phonepe?.merchantOrderId ||
-          data?.merchantOrderId ||
-          orderRef.id,
-        "payment.phonepeResponse": data?.phonepe || null,
-        updatedAt: new Date().toISOString(),
+      const razorpayLoaded = await loadRazorpayCheckout()
+
+      if (!razorpayLoaded || !window.Razorpay) {
+        alert("Razorpay checkout could not load. Please try again.")
+        router.push("/orders")
+        return
+      }
+
+      const checkout = new window.Razorpay({
+        key: data.keyId,
+        amount: data.amount,
+        currency: data.currency || "INR",
+        name: "THE PADDLER",
+        description: `Order #${orderRef.id}`,
+        order_id: data.razorpayOrderId,
+        prefill: {
+          name: user.displayName || selectedAddress.fullName,
+          email: user.email || "",
+          contact: selectedAddress.phone,
+        },
+        notes: {
+          orderId: orderRef.id,
+          invoiceNumber,
+        },
+        theme: {
+          color: "#000000",
+        },
+        modal: {
+          ondismiss: () => {
+            setPlacingOrder(false)
+            router.push("/orders")
+          },
+        },
+        handler: async (paymentResponse) => {
+          try {
+            const verifyResponse = await fetch("/api/razorpay/verify", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                orderId: orderRef.id,
+                ...paymentResponse,
+              }),
+            })
+            const verifyData = await verifyResponse.json()
+
+            if (!verifyResponse.ok || !verifyData?.ok) {
+              alert(
+                verifyData?.message ||
+                  "Payment received, but verification failed. Please contact support."
+              )
+              router.push("/orders")
+              return
+            }
+
+            clearCart()
+            router.push("/orders")
+          } catch (error) {
+            console.error("RAZORPAY VERIFY CLIENT ERROR:", error)
+            alert(
+              "Payment received, but verification could not complete. Please contact support."
+            )
+            router.push("/orders")
+          } finally {
+            setPlacingOrder(false)
+          }
+        },
       })
 
-      clearCart()
-      window.location.href = data.redirectUrl
+      checkout.open()
     } catch (error) {
       console.error("ORDER CREATE ERROR:", error)
       alert("Unable to create order. Please try again.")
@@ -423,11 +535,11 @@ export default function CheckoutPage() {
 
                 <div className="border border-green-700 bg-green-950/30 p-5">
                   <p className="font-black text-green-400">
-                    Secure online payment through PhonePe
+                    Secure online payment through Razorpay
                   </p>
 
                   <p className="text-sm text-muted-foreground mt-1">
-                    Your order is confirmed after successful payment.
+                    Your order is confirmed after successful Razorpay payment.
                   </p>
                 </div>
               </section>
@@ -555,7 +667,7 @@ export default function CheckoutPage() {
               </button>
 
               <p className="text-xs text-muted-foreground text-center mt-4">
-                PhonePe payment connection is next. This creates a pending order first.
+                Razorpay checkout will open securely after creating your order.
               </p>
             </aside>
 
