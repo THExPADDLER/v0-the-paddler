@@ -32,6 +32,11 @@ type CustomerOrder = {
     total: number
   }
   status: string
+  customer?: {
+    name?: string
+    email?: string
+    phone?: string
+  }
   payment?: {
     status?: string
     gateway?: string
@@ -45,6 +50,68 @@ type CustomerOrder = {
   trackingId?: string
   createdAt: string
   returnRequested?: boolean
+}
+
+type RazorpayCheckoutResponse = {
+  razorpay_order_id: string
+  razorpay_payment_id: string
+  razorpay_signature: string
+}
+
+type RazorpayFailedResponse = {
+  error?: {
+    description?: string
+    reason?: string
+  }
+}
+
+type RazorpayOptions = {
+  key: string
+  amount: number
+  currency: string
+  name: string
+  description: string
+  order_id: string
+  prefill: {
+    name: string
+    email: string
+    contact: string
+  }
+  notes: Record<string, string>
+  theme: {
+    color: string
+  }
+  modal: {
+    ondismiss: () => void
+  }
+  handler: (response: RazorpayCheckoutResponse) => void
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => {
+      open: () => void
+      on: (
+        event: "payment.failed",
+        handler: (response: RazorpayFailedResponse) => void
+      ) => void
+    }
+  }
+}
+
+const loadRazorpayCheckout = () => {
+  return new Promise<boolean>((resolve) => {
+    if (window.Razorpay) {
+      resolve(true)
+      return
+    }
+
+    const script = document.createElement("script")
+    script.src = "https://checkout.razorpay.com/v1/checkout.js"
+    script.onload = () => resolve(true)
+    script.onerror = () => resolve(false)
+    document.body.appendChild(script)
+  })
 }
 
 const formatStatus = (status: string) => {
@@ -81,6 +148,7 @@ export default function OrdersPage() {
   const [loadingOrders, setLoadingOrders] = useState(true)
   const [returningOrderId, setReturningOrderId] = useState<string | null>(null)
   const [checkingPaymentOrderId, setCheckingPaymentOrderId] = useState<string | null>(null)
+  const [retryingPaymentOrderId, setRetryingPaymentOrderId] = useState<string | null>(null)
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null)
   const autoCheckedPayments = useRef<Set<string>>(new Set())
 
@@ -194,6 +262,132 @@ export default function OrdersPage() {
       alert("Unable to refresh payment status.")
     } finally {
       setCheckingPaymentOrderId(null)
+    }
+  }
+
+  const retryRazorpayPayment = async (order: CustomerOrder) => {
+    if (!user) {
+      router.push("/login?redirect=/orders")
+      return
+    }
+
+    if (order.payment?.status === "success") {
+      alert("Payment is already successful for this order.")
+      return
+    }
+
+    if (order.status === "cancelled") {
+      alert("Cancelled orders cannot be paid again. Please place a new order.")
+      return
+    }
+
+    setRetryingPaymentOrderId(order.id)
+
+    try {
+      const createResponse = await fetch("/api/razorpay/create-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          orderId: order.id,
+          amount: order.pricing.total,
+          customer: {
+            email: user.email || "",
+          },
+        }),
+      })
+      const createData = await createResponse.json()
+
+      if (!createResponse.ok || !createData?.razorpayOrderId || !createData?.keyId) {
+        alert(createData?.message || "Unable to restart payment.")
+        setRetryingPaymentOrderId(null)
+        return
+      }
+
+      const loaded = await loadRazorpayCheckout()
+
+      if (!loaded || !window.Razorpay) {
+        alert("Razorpay checkout could not load. Please try again.")
+        setRetryingPaymentOrderId(null)
+        return
+      }
+
+      const checkout = new window.Razorpay({
+        key: createData.keyId,
+        amount: createData.amount,
+        currency: createData.currency || "INR",
+        name: "THE PADDLER",
+        description: `Order #${order.id}`,
+        order_id: createData.razorpayOrderId,
+        prefill: {
+          name: user.displayName || order.customer?.name || "",
+          email: user.email || order.customer?.email || "",
+          contact: order.customer?.phone || "",
+        },
+        notes: {
+          orderId: order.id,
+          invoiceNumber: order.invoiceNumber || "",
+        },
+        theme: {
+          color: "#000000",
+        },
+        modal: {
+          ondismiss: () => {
+            setRetryingPaymentOrderId(null)
+            fetchOrders()
+          },
+        },
+        handler: async (paymentResponse) => {
+          try {
+            const verifyResponse = await fetch("/api/razorpay/verify", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                orderId: order.id,
+                ...paymentResponse,
+              }),
+            })
+            const verifyData = await verifyResponse.json()
+
+            if (!verifyResponse.ok || !verifyData?.ok) {
+              alert(
+                verifyData?.message ||
+                  "Payment received, but verification failed. Please contact support."
+              )
+              return
+            }
+
+            await fetchOrders()
+            alert("Payment successful. Your order is confirmed.")
+          } catch (error) {
+            console.error("RAZORPAY RETRY VERIFY ERROR:", error)
+            alert("Payment verification failed. Please contact support.")
+          } finally {
+            setRetryingPaymentOrderId(null)
+          }
+        },
+      })
+
+      checkout.on("payment.failed", async (response) => {
+        await updateDoc(doc(db, "orders", order.id), {
+          status: "payment_failed",
+          "payment.status": "failed",
+          "payment.failureReason":
+            response.error?.description || response.error?.reason || null,
+          updatedAt: new Date().toISOString(),
+        })
+        setRetryingPaymentOrderId(null)
+        await fetchOrders()
+      })
+
+      checkout.open()
+    } catch (error) {
+      console.error("RAZORPAY RETRY ERROR:", error)
+      alert("Unable to retry payment.")
+      setRetryingPaymentOrderId(null)
     }
   }
 
@@ -600,6 +794,21 @@ export default function OrdersPage() {
                                   {checkingPaymentOrderId === order.id
                                     ? "CHECKING..."
                                     : "CHECK PAYMENT STATUS"}
+                                </button>
+                              )}
+
+                            {order.payment?.gateway === "razorpay" &&
+                              order.payment?.status !== "success" &&
+                              order.status !== "cancelled" && (
+                                <button
+                                  type="button"
+                                  onClick={() => retryRazorpayPayment(order)}
+                                  disabled={retryingPaymentOrderId === order.id}
+                                  className="px-5 py-3 bg-foreground text-background text-sm font-bold hover:bg-foreground/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  {retryingPaymentOrderId === order.id
+                                    ? "OPENING PAYMENT..."
+                                    : "RETRY PAYMENT"}
                                 </button>
                               )}
 

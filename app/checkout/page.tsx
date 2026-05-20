@@ -32,6 +32,13 @@ type RazorpayCheckoutResponse = {
   razorpay_signature: string
 }
 
+type RazorpayFailedResponse = {
+  error?: {
+    description?: string
+    reason?: string
+  }
+}
+
 type RazorpayOptions = {
   key: string
   amount: number
@@ -58,6 +65,10 @@ declare global {
   interface Window {
     Razorpay?: new (options: RazorpayOptions) => {
       open: () => void
+      on: (
+        event: "payment.failed",
+        handler: (response: RazorpayFailedResponse) => void
+      ) => void
     }
   }
 }
@@ -385,6 +396,20 @@ export default function CheckoutPage() {
             setPlacingOrder(false)
           }
         },
+      })
+
+      checkout.on("payment.failed", async (paymentFailure) => {
+        await updateDoc(orderRef, {
+          status: "payment_failed",
+          "payment.status": "failed",
+          "payment.failureReason":
+            paymentFailure.error?.description ||
+            paymentFailure.error?.reason ||
+            null,
+          updatedAt: new Date().toISOString(),
+        })
+        setPlacingOrder(false)
+        router.push("/orders")
       })
 
       checkout.open()
