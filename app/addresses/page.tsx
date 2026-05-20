@@ -130,12 +130,12 @@ export default function AddressesPage() {
       }
 
       setPincodeMessage(
-        "Live delivery check is temporarily unavailable. Enter city/state manually; we will verify before dispatch."
+        "Enter city/state manually. Courier availability will be confirmed before dispatch."
       )
     } catch (error) {
       console.error("ADDRESS PINCODE SERVICEABILITY ERROR:", error)
       setPincodeMessage(
-        "Live delivery check is temporarily unavailable. Enter city/state manually; we will verify before dispatch."
+        "Enter city/state manually. Courier availability will be confirmed before dispatch."
       )
     } finally {
       setCheckingPincode(false)

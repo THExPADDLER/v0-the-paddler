@@ -331,7 +331,7 @@ export default function ProductPage() {
       }
 
       setDeliveryMessage(
-        `Live courier check is temporarily unavailable. Approx delivery by ${deliveryDate}.`
+        `Approx delivery by ${deliveryDate}. Final courier availability will be confirmed before dispatch.`
       )
       return
     } catch (error) {

@@ -252,7 +252,7 @@ export default function CheckoutPage() {
                 data.courierName ? ` via ${data.courierName}` : ""
               }.${etaText}`
             : isShiprocketUnavailable
-            ? "Delivery partner check is temporarily unavailable. You can still pay; we will verify dispatch before shipping."
+            ? "Courier availability will be confirmed before dispatch. You can continue payment."
             : data?.message ||
               "Delivery is currently not serviceable for this pincode.",
         courierName: data?.courierName || null,
