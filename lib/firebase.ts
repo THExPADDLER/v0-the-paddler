@@ -3,9 +3,27 @@ import { getAuth } from "firebase/auth"
 import { initializeFirestore } from "firebase/firestore"
 import { getStorage } from "firebase/storage"
 
+const getAuthDomain = () => {
+  if (typeof window === "undefined") {
+    return "the-paddler-6969.firebaseapp.com"
+  }
+
+  const hostname = window.location.hostname
+
+  if (
+    hostname === "v0-the-paddler.vercel.app" ||
+    hostname === "thepaddler.in" ||
+    hostname === "www.thepaddler.in"
+  ) {
+    return hostname
+  }
+
+  return "the-paddler-6969.firebaseapp.com"
+}
+
 const firebaseConfig = {
   apiKey: "AIzaSyCQqRihdwwSiF-wJb1PL19HIs4rrGLryEI",
-  authDomain: "the-paddler-6969.firebaseapp.com",
+  authDomain: getAuthDomain(),
   projectId: "the-paddler-6969",
   storageBucket: "the-paddler-6969.firebasestorage.app",
   messagingSenderId: "48199959190",
