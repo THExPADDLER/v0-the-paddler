@@ -8,7 +8,9 @@ import { collection, getDocs } from "firebase/firestore"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { ProtectedRoute } from "@/components/protected-route"
+import { auth } from "@/lib/firebase"
 import { db } from "@/lib/firebase"
+import { syncUserProfile } from "@/lib/sync-user-profile"
 
 type OrderRecord = {
   id: string
@@ -71,40 +73,65 @@ export default function AdminUsersPage() {
     "registered"
   )
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true)
+      const [ordersSnapshot, usersSnapshot] = await Promise.all([
+        getDocs(collection(db, "orders")),
+        getDocs(collection(db, "users")),
+      ])
+
+      setOrders(
+        ordersSnapshot.docs.map((item) => ({
+          id: item.id,
+          ...(item.data() as Omit<OrderRecord, "id">),
+        }))
+      )
+
+      setRegisteredUsers(
+        usersSnapshot.docs.map((item) => ({
+          id: item.id,
+          ...(item.data() as Omit<UserRecord, "id">),
+        }))
+      )
+    } catch (error) {
+      console.error("ADMIN USERS FETCH ERROR:", error)
+      setOrders([])
+      setRegisteredUsers([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setLoading(true)
-        const [ordersSnapshot, usersSnapshot] = await Promise.all([
-          getDocs(collection(db, "orders")),
-          getDocs(collection(db, "users")),
-        ])
-
-        setOrders(
-          ordersSnapshot.docs.map((item) => ({
-            id: item.id,
-            ...(item.data() as Omit<OrderRecord, "id">),
-          }))
-        )
-
-        setRegisteredUsers(
-          usersSnapshot.docs.map((item) => ({
-            id: item.id,
-            ...(item.data() as Omit<UserRecord, "id">),
-          }))
-        )
-      } catch (error) {
-        console.error("ADMIN USERS FETCH ERROR:", error)
-        setOrders([])
-        setRegisteredUsers([])
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchUsers()
   }, [])
+
+  const syncCurrentAdminProfile = async () => {
+    if (!auth.currentUser) {
+      alert("No logged-in Firebase user found.")
+      return
+    }
+
+    setSyncing(true)
+
+    try {
+      await syncUserProfile(auth.currentUser, "admin")
+      await fetchUsers()
+      alert("Current admin profile synced into users collection.")
+    } catch (error) {
+      console.error("ADMIN USER SYNC ERROR:", error)
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to sync user profile. Check Firestore rules."
+      )
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const buyers = useMemo<CustomerSummary[]>(() => {
     const map = new Map<string, CustomerSummary>()
@@ -208,6 +235,24 @@ export default function AdminUsersPage() {
                   ORDERED ({buyers.length})
                 </button>
               </div>
+            </div>
+
+            <div className="mb-6 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={fetchUsers}
+                className="border border-border px-4 py-3 text-sm font-black hover:bg-secondary"
+              >
+                REFRESH USERS
+              </button>
+              <button
+                type="button"
+                onClick={syncCurrentAdminProfile}
+                disabled={syncing}
+                className="border border-border px-4 py-3 text-sm font-black hover:bg-secondary disabled:opacity-50"
+              >
+                {syncing ? "SYNCING..." : "SYNC CURRENT LOGIN"}
+              </button>
             </div>
 
             {loading ? (

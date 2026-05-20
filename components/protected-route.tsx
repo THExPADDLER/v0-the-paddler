@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { onAuthStateChanged } from "firebase/auth"
 
 import { auth } from "@/lib/firebase"
+import { syncUserProfile } from "@/lib/sync-user-profile"
 
 type ProtectedRouteProps = {
   children: React.ReactNode
@@ -22,7 +23,7 @@ export function ProtectedRoute({
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
         localStorage.removeItem("user")
         router.push("/login")
@@ -32,17 +33,24 @@ export function ProtectedRoute({
 
       const email = firebaseUser.email || ""
 
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          uid: firebaseUser.uid,
-          name: firebaseUser.displayName || "Customer",
-          email,
-          role: ADMIN_EMAILS.includes(email) ? "admin" : "customer",
-        })
-      )
+      const role = ADMIN_EMAILS.includes(email) ? "admin" : "customer"
 
-      if (adminOnly && !ADMIN_EMAILS.includes(email)) {
+      try {
+        await syncUserProfile(firebaseUser, role)
+      } catch (error) {
+        console.error("PROTECTED ROUTE USER PROFILE SAVE ERROR:", error)
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            uid: firebaseUser.uid,
+            name: firebaseUser.displayName || "Customer",
+            email,
+            role,
+          })
+        )
+      }
+
+      if (adminOnly && role !== "admin") {
         router.push("/")
         setChecking(false)
         return
