@@ -4,13 +4,18 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import {
+  browserLocalPersistence,
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   getRedirectResult,
+  onAuthStateChanged,
+  setPersistence,
   signInWithPopup,
   signInWithRedirect,
   updateProfile,
 } from "firebase/auth";
+
+const GOOGLE_REDIRECT_KEY = "the-paddler-google-signup-redirect";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -43,8 +48,24 @@ export default function SignupPage() {
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get("redirect");
 
-    return redirect && redirect.startsWith("/") ? redirect : "/";
+    if (redirect && redirect.startsWith("/")) return redirect;
+
+    const savedRedirect = sessionStorage.getItem(GOOGLE_REDIRECT_KEY);
+
+    return savedRedirect && savedRedirect.startsWith("/") ? savedRedirect : "/";
   };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (!currentUser) return;
+
+      const redirectPath = getRedirectPath();
+      sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
+      router.replace(redirectPath);
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   const getGoogleAuthMessage = (error: any) => {
     if (error?.code === "auth/unauthorized-domain") {
@@ -98,6 +119,10 @@ export default function SignupPage() {
   const handleGoogleSignup = async () => {
     try {
       const provider = new GoogleAuthProvider();
+      const redirectPath = getRedirectPath();
+
+      sessionStorage.setItem(GOOGLE_REDIRECT_KEY, redirectPath);
+      await setPersistence(auth, browserLocalPersistence);
 
       if (isMobileBrowser()) {
         await signInWithRedirect(auth, provider);
@@ -109,9 +134,10 @@ export default function SignupPage() {
       console.log("Google signup user:", result.user);
 
       alert("Google Signup Success");
+      sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
 
       setTimeout(() => {
-        router.push(getRedirectPath());
+        router.push(redirectPath);
       }, 800);
     } catch (error: any) {
       console.error("GOOGLE SIGNUP ERROR:", error);
@@ -120,6 +146,8 @@ export default function SignupPage() {
         error?.code === "auth/popup-blocked" ||
         error?.code === "auth/cancelled-popup-request"
       ) {
+        sessionStorage.setItem(GOOGLE_REDIRECT_KEY, getRedirectPath());
+        await setPersistence(auth, browserLocalPersistence);
         await signInWithRedirect(auth, new GoogleAuthProvider());
         return;
       }

@@ -4,12 +4,17 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import {
+  browserLocalPersistence,
   GoogleAuthProvider,
   getRedirectResult,
+  onAuthStateChanged,
+  setPersistence,
   signInWithPopup,
   signInWithRedirect,
   signInWithEmailAndPassword,
 } from "firebase/auth";
+
+const GOOGLE_REDIRECT_KEY = "the-paddler-google-login-redirect";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,8 +44,24 @@ export default function LoginPage() {
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get("redirect");
 
-    return redirect && redirect.startsWith("/") ? redirect : "/";
+    if (redirect && redirect.startsWith("/")) return redirect;
+
+    const savedRedirect = sessionStorage.getItem(GOOGLE_REDIRECT_KEY);
+
+    return savedRedirect && savedRedirect.startsWith("/") ? savedRedirect : "/";
   };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (!currentUser) return;
+
+      const redirectPath = getRedirectPath();
+      sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
+      router.replace(redirectPath);
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   const getGoogleAuthMessage = (error: any) => {
     if (error?.code === "auth/unauthorized-domain") {
@@ -80,6 +101,10 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     try {
       const provider = new GoogleAuthProvider();
+      const redirectPath = getRedirectPath();
+
+      sessionStorage.setItem(GOOGLE_REDIRECT_KEY, redirectPath);
+      await setPersistence(auth, browserLocalPersistence);
 
       if (isMobileBrowser()) {
         await signInWithRedirect(auth, provider);
@@ -90,7 +115,8 @@ export default function LoginPage() {
 
       console.log("Google login user:", result.user);
       alert("Google Login Success");
-      router.push(getRedirectPath());
+      sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
+      router.push(redirectPath);
     } catch (error: any) {
       console.error("GOOGLE ERROR:", error);
 
@@ -98,6 +124,8 @@ export default function LoginPage() {
         error?.code === "auth/popup-blocked" ||
         error?.code === "auth/cancelled-popup-request"
       ) {
+        sessionStorage.setItem(GOOGLE_REDIRECT_KEY, getRedirectPath());
+        await setPersistence(auth, browserLocalPersistence);
         await signInWithRedirect(auth, new GoogleAuthProvider());
         return;
       }
