@@ -109,6 +109,9 @@ export default function ProductPage() {
   const [coupon, setCoupon] = useState("")
   const [couponMessage, setCouponMessage] = useState("")
   const [sharedStockBySize, setSharedStockBySize] = useState<SizeStock | null>(null)
+  const [activeImage, setActiveImage] = useState("")
+  const [zoomOrigin, setZoomOrigin] = useState("50% 50%")
+  const [isImageZoomed, setIsImageZoomed] = useState(false)
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -164,6 +167,10 @@ export default function ProductPage() {
     }
 
     fetchProduct()
+  }, [slug])
+
+  useEffect(() => {
+    setActiveImage("")
   }, [slug])
 
   useEffect(() => {
@@ -232,6 +239,16 @@ export default function ProductPage() {
   const discountPercent = displayMrp
     ? Math.round(((displayMrp - product.price) / displayMrp) * 100)
     : 0
+  const productImages = product.images?.length ? product.images : [product.image]
+  const selectedImage = activeImage || productImages[0] || product.image
+
+  const handleImageZoom = (event: React.MouseEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const x = ((event.clientX - rect.left) / rect.width) * 100
+    const y = ((event.clientY - rect.top) / rect.height) * 100
+    setZoomOrigin(`${x}% ${y}%`)
+    setIsImageZoomed(true)
+  }
 
   const handleWishlist = () => {
     if (saved) {
@@ -428,12 +445,20 @@ export default function ProductPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
             <div className="relative">
-              <div className="aspect-square bg-neutral-900 overflow-hidden sticky top-24 group">
+              <div
+                className="aspect-square bg-neutral-900 overflow-hidden sticky top-24 group"
+                onMouseMove={handleImageZoom}
+                onMouseLeave={() => setIsImageZoomed(false)}
+              >
                 <Image
-                  src={product.image}
+                  src={selectedImage}
                   alt={product.name}
                   fill
-                  className="object-cover group-hover:scale-110 transition-transform duration-700"
+                  className="object-cover transition-transform duration-200 ease-out"
+                  style={{
+                    transformOrigin: zoomOrigin,
+                    transform: isImageZoomed ? "scale(1.5)" : "scale(1)",
+                  }}
                   priority
                 />
 
@@ -457,6 +482,30 @@ export default function ProductPage() {
                   />
                 </button>
               </div>
+
+              {productImages.length > 1 && (
+                <div className="mt-4 grid grid-cols-4 gap-3">
+                  {productImages.map((image) => (
+                    <button
+                      key={image}
+                      type="button"
+                      onClick={() => setActiveImage(image)}
+                      className={`relative aspect-square overflow-hidden border bg-neutral-900 transition-all ${
+                        selectedImage === image
+                          ? "border-foreground"
+                          : "border-border hover:border-muted-foreground"
+                      }`}
+                    >
+                      <Image
+                        src={image}
+                        alt={`${product.name} thumbnail`}
+                        fill
+                        className="object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col">

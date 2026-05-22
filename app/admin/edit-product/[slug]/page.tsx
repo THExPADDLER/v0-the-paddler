@@ -45,8 +45,9 @@ export default function EditProductPage() {
   const [mrp, setMrp] = useState("")
   const [price, setPrice] = useState("")
   const [image, setImage] = useState("")
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState("")
+  const [images, setImages] = useState<string[]>([])
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [color, setColor] = useState("")
   const [colorHex, setColorHex] = useState("#000000")
   const [badge, setBadge] = useState<BadgeOption>("new-arrival")
@@ -90,6 +91,7 @@ export default function EditProductPage() {
         setMrp(String(product.mrp || ""))
         setPrice(String(product.price || ""))
         setImage(product.image)
+        setImages(product.images?.length ? product.images : [product.image])
         setColor(product.color)
         setColorHex(product.colorHex || "#000000")
         setBadge(getBadgeOption(product.badge))
@@ -116,35 +118,34 @@ export default function EditProductPage() {
     fetchProduct()
   }, [slug])
 
-  const handleImageSelect = (file: File | null) => {
-    if (!file) return
+  const handleImageSelect = (files: FileList | null) => {
+    if (!files?.length) return
 
-    if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file.")
+    const selectedFiles = Array.from(files).slice(0, 6)
+
+    if (selectedFiles.some((file) => !file.type.startsWith("image/"))) {
+      alert("Please upload image files only.")
       return
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Image must be smaller than 5MB.")
+    if (selectedFiles.some((file) => file.size > 5 * 1024 * 1024)) {
+      alert("Each image must be smaller than 5MB.")
       return
     }
 
-    if (imagePreview) {
-      URL.revokeObjectURL(imagePreview)
-    }
+    imagePreviews.forEach((preview) => URL.revokeObjectURL(preview))
 
-    setImageFile(file)
-    setImagePreview(URL.createObjectURL(file))
+    setImageFiles(selectedFiles)
+    setImagePreviews(selectedFiles.map((file) => URL.createObjectURL(file)))
   }
 
   const clearImage = () => {
-    if (imagePreview) {
-      URL.revokeObjectURL(imagePreview)
-    }
+    imagePreviews.forEach((preview) => URL.revokeObjectURL(preview))
 
-    setImageFile(null)
+    setImageFiles([])
     setImage("")
-    setImagePreview("")
+    setImages([])
+    setImagePreviews([])
   }
 
   const handleSave = async (event: React.FormEvent) => {
@@ -162,16 +163,26 @@ export default function EditProductPage() {
     try {
       const selectedBadge = badgeOptions[badge]
       let imageUrl = image
+      let imageUrls = images.length ? images : image ? [image] : []
 
-      if (imageFile) {
-        const extension = imageFile.name.split(".").pop()?.toLowerCase() || "jpg"
-        const imageRef = ref(storage, `products/${slug}-${Date.now()}.${extension}`)
+      if (imageFiles.length > 0) {
+        imageUrls = []
 
-        await uploadBytes(imageRef, imageFile, {
-          contentType: imageFile.type,
-        })
+        for (const [index, file] of imageFiles.entries()) {
+          const extension = file.name.split(".").pop()?.toLowerCase() || "jpg"
+          const imageRef = ref(
+            storage,
+            `products/${slug}-${index + 1}-${Date.now()}.${extension}`
+          )
 
-        imageUrl = await getDownloadURL(imageRef)
+          await uploadBytes(imageRef, file, {
+            contentType: file.type,
+          })
+
+          imageUrls.push(await getDownloadURL(imageRef))
+        }
+
+        imageUrl = imageUrls[0]
       }
 
       if (!imageUrl) {
@@ -191,7 +202,7 @@ export default function EditProductPage() {
           price: priceNumber,
           discountPercent,
           image: imageUrl,
-          images: [imageUrl],
+          images: imageUrls,
           badge: selectedBadge.label,
           badgeColor: selectedBadge.color,
           sizes: originalProduct.sizes?.length ? originalProduct.sizes : ["S", "M", "L"],
@@ -332,20 +343,32 @@ export default function EditProductPage() {
                     PRODUCT IMAGE
                   </p>
 
-                  {imagePreview || image ? (
+                  {imagePreviews.length > 0 || images.length > 0 || image ? (
                     <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
-                      <div className="relative h-52 w-40 overflow-hidden bg-neutral-900 border border-border">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={imagePreview || image}
-                          alt="Product preview"
-                          className="h-full w-full object-cover"
-                        />
+                      <div className="grid grid-cols-3 gap-3">
+                        {(imagePreviews.length > 0
+                          ? imagePreviews
+                          : images.length > 0
+                            ? images
+                            : [image]
+                        ).map((preview, index) => (
+                          <div
+                            key={`${preview}-${index}`}
+                            className="relative h-32 w-24 overflow-hidden bg-neutral-900 border border-border"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={preview}
+                              alt={`Product preview ${index + 1}`}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        ))}
                       </div>
 
                       <div className="flex-1">
                         <p className="text-sm text-muted-foreground mb-4">
-                          Current image is shown here. Upload another file to replace it.
+                          First image becomes the main product image. Upload new files to replace the gallery.
                         </p>
 
                         <div className="flex flex-wrap gap-3">
@@ -354,9 +377,10 @@ export default function EditProductPage() {
                             <input
                               type="file"
                               accept="image/*"
+                              multiple
                               className="hidden"
                               onChange={(event) =>
-                                handleImageSelect(event.target.files?.[0] || null)
+                                handleImageSelect(event.target.files)
                               }
                             />
                           </label>
@@ -384,9 +408,10 @@ export default function EditProductPage() {
                       <input
                         type="file"
                         accept="image/*"
+                        multiple
                         className="hidden"
                         onChange={(event) =>
-                          handleImageSelect(event.target.files?.[0] || null)
+                          handleImageSelect(event.target.files)
                         }
                       />
                     </label>

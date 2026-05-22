@@ -159,6 +159,48 @@ html {
   animation: timeline-wait 1.8s ease-in-out infinite;
 }
 
+/* ===== GLOBAL UI MOTION ===== */
+
+@keyframes paddler-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  main > div,
+  main section,
+  article,
+  form,
+  [class*="border-border"] {
+    animation: paddler-fade-up 520ms ease-out both;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    transition:
+      transform 180ms ease,
+      background-color 180ms ease,
+      border-color 180ms ease,
+      color 180ms ease,
+      opacity 180ms ease;
+  }
+
+  button:hover,
+  a:hover {
+    transform: translateY(-1px);
+  }
+}
+
 /* ===== SELECTION ===== */
 
 ::selection {

@@ -396,6 +396,7 @@ export default function AdminUsersPage() {
                             >
                               <option value="admin">Admin</option>
                               <option value="staff">Staff</option>
+                              <option value="influencer">Influencer</option>
                               <option value="customer">Customer</option>
                             </select>
                           </div>

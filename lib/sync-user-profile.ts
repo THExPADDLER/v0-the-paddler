@@ -5,7 +5,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore"
 
 import { db } from "@/lib/firebase"
 
-export type UserRole = "admin" | "staff" | "customer"
+export type UserRole = "admin" | "staff" | "influencer" | "customer"
 
 const ADMIN_EMAILS = ["vp982761@gmail.com", "thexpaddler@gmail.com"]
 

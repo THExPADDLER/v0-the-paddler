@@ -33,8 +33,8 @@ export default function AddProductPage() {
   const [mrp, setMrp] = useState("")
   const [price, setPrice] = useState("")
   const [image, setImage] = useState("")
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState("")
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [color, setColor] = useState("")
   const [colorHex, setColorHex] = useState("#000000")
   const [badge, setBadge] = useState<BadgeOption>("new-arrival")
@@ -72,36 +72,34 @@ export default function AddProductPage() {
     setSlug(createSlug(value))
   }
 
-  const handleImageSelect = (file: File | null) => {
-    if (!file) return
+  const handleImageSelect = (files: FileList | null) => {
+    if (!files?.length) return
 
-    if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file.")
+    const selectedFiles = Array.from(files).slice(0, 6)
+
+    if (selectedFiles.some((file) => !file.type.startsWith("image/"))) {
+      alert("Please upload image files only.")
       return
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Image must be smaller than 5MB.")
+    if (selectedFiles.some((file) => file.size > 5 * 1024 * 1024)) {
+      alert("Each image must be smaller than 5MB.")
       return
     }
 
-    if (imagePreview) {
-      URL.revokeObjectURL(imagePreview)
-    }
+    imagePreviews.forEach((preview) => URL.revokeObjectURL(preview))
 
-    setImageFile(file)
+    setImageFiles(selectedFiles)
     setImage("")
-    setImagePreview(URL.createObjectURL(file))
+    setImagePreviews(selectedFiles.map((file) => URL.createObjectURL(file)))
   }
 
   const clearImage = () => {
-    if (imagePreview) {
-      URL.revokeObjectURL(imagePreview)
-    }
+    imagePreviews.forEach((preview) => URL.revokeObjectURL(preview))
 
-    setImageFile(null)
+    setImageFiles([])
     setImage("")
-    setImagePreview("")
+    setImagePreviews([])
   }
 
   const handleSave = async (e: React.FormEvent) => {
@@ -117,23 +115,30 @@ export default function AddProductPage() {
     try {
       const selectedBadge = badgeOptions[badge]
       let imageUrl = image
+      let imageUrls = image ? [image] : []
 
-      if (imageFile) {
-        const extension = imageFile.name.split(".").pop()?.toLowerCase() || "jpg"
-        const imageRef = ref(
-          storage,
-          `products/${slug || createSlug(name)}-${Date.now()}.${extension}`
-        )
+      if (imageFiles.length > 0) {
+        imageUrls = []
 
-        await uploadBytes(imageRef, imageFile, {
-          contentType: imageFile.type,
-        })
+        for (const [index, file] of imageFiles.entries()) {
+          const extension = file.name.split(".").pop()?.toLowerCase() || "jpg"
+          const imageRef = ref(
+            storage,
+            `products/${slug || createSlug(name)}-${index + 1}-${Date.now()}.${extension}`
+          )
 
-        imageUrl = await getDownloadURL(imageRef)
+          await uploadBytes(imageRef, file, {
+            contentType: file.type,
+          })
+
+          imageUrls.push(await getDownloadURL(imageRef))
+        }
+
+        imageUrl = imageUrls[0]
       }
 
       if (!imageUrl) {
-        alert("Please upload a product image.")
+        alert("Please upload at least one product image.")
         return
       }
 
@@ -149,7 +154,7 @@ export default function AddProductPage() {
         discountPercent,
 
         image: imageUrl,
-        images: [imageUrl],
+        images: imageUrls,
         badge: selectedBadge.label,
         badgeColor: selectedBadge.color,
         sizes: ["S", "M", "L"],
@@ -284,20 +289,29 @@ export default function AddProductPage() {
                   PRODUCT IMAGE
                 </p>
 
-                {imagePreview || image ? (
+                {imagePreviews.length > 0 || image ? (
                   <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
-                    <div className="relative h-52 w-40 overflow-hidden bg-neutral-900 border border-border">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={imagePreview || image}
-                        alt="Product preview"
-                        className="h-full w-full object-cover"
-                      />
+                    <div className="grid grid-cols-3 gap-3">
+                      {(imagePreviews.length > 0 ? imagePreviews : [image]).map(
+                        (preview, index) => (
+                          <div
+                            key={`${preview}-${index}`}
+                            className="relative h-32 w-24 overflow-hidden bg-neutral-900 border border-border"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={preview}
+                              alt={`Product preview ${index + 1}`}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        )
+                      )}
                     </div>
 
                     <div className="flex-1">
                       <p className="text-sm text-muted-foreground mb-4">
-                        Image selected. Upload another file if you want to replace it before saving.
+                        Images selected. First image becomes the main product image.
                       </p>
 
                       <div className="flex flex-wrap gap-3">
@@ -306,8 +320,9 @@ export default function AddProductPage() {
                           <input
                             type="file"
                             accept="image/*"
+                            multiple
                             className="hidden"
-                            onChange={(event) => handleImageSelect(event.target.files?.[0] || null)}
+                            onChange={(event) => handleImageSelect(event.target.files)}
                           />
                         </label>
 
@@ -329,14 +344,15 @@ export default function AddProductPage() {
                       UPLOAD PRODUCT IMAGE
                     </span>
                     <span className="mt-2 text-sm text-muted-foreground">
-                      JPG, PNG or WebP under 5MB
+                      Upload up to 6 JPG, PNG or WebP images under 5MB each
                     </span>
                     <input
                       type="file"
                       accept="image/*"
+                      multiple
                       className="hidden"
                       required={!image}
-                      onChange={(event) => handleImageSelect(event.target.files?.[0] || null)}
+                      onChange={(event) => handleImageSelect(event.target.files)}
                     />
                   </label>
                 )}

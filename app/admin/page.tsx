@@ -12,6 +12,7 @@ import {
   ImageIcon,
   Star,
   Boxes,
+  BadgePercent,
 } from "lucide-react"
 import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore"
 
@@ -130,6 +131,13 @@ const links = [
     adminOnly: true,
   },
   {
+    title: "Influencer Dashboard",
+    href: "/admin/influencer",
+    desc: "View coupon usage, sold tees, and generated commission.",
+    icon: BadgePercent,
+    influencerOnly: true,
+  },
+  {
     title: "Returns",
     href: "/admin/returns",
     desc: "Approve returns and initiate refunds.",
@@ -158,6 +166,7 @@ export default function AdminPage() {
   const [resetMenuOpen, setResetMenuOpen] = useState(false)
   const [resettingTarget, setResettingTarget] = useState<ResetTarget | null>(null)
   const isAdmin = role === "admin"
+  const isInfluencer = role === "influencer"
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user")
@@ -378,7 +387,7 @@ export default function AdminPage() {
   )
 
   return (
-    <ProtectedRoute adminOnly>
+    <ProtectedRoute allowedRoles={["admin", "staff", "influencer"]}>
       <>
         <Header />
 
@@ -486,7 +495,13 @@ export default function AdminPage() {
             )}
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {links.filter((item) => isAdmin || !item.adminOnly).map((item) => {
+              {links
+                .filter((item) => {
+                  if (isInfluencer) return item.influencerOnly
+                  if (item.influencerOnly) return isAdmin
+                  return isAdmin || !item.adminOnly
+                })
+                .map((item) => {
                 const Icon = item.icon
 
                 return (
