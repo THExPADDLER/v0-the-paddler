@@ -1,55 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { checkShiprocketServiceability } from "@/lib/shiprocket"
-import { getFallbackPincode } from "@/lib/serviceable-pincodes"
-
-type CourierCompany = {
-  courier_name?: string
-  etd?: string
-  estimated_delivery_days?: string | number
-  rate?: number
-  freight_charge?: number
-  cod?: number
-}
-
-const getBestCourier = (data: Record<string, unknown>) => {
-  const companies =
-    (data.data as { available_courier_companies?: CourierCompany[] } | undefined)
-      ?.available_courier_companies || []
-
-  return companies[0] || null
-}
-
-const fallbackResponse = (pincode: string, reason?: string) => {
-  const fallback = getFallbackPincode(pincode)
-
-  if (!fallback) {
-    return NextResponse.json({
-      ok: true,
-      pincode,
-      serviceable: null,
-      source: "fallback",
-      message:
-        "Approx delivery available. Final courier availability will be confirmed before dispatch.",
-      shiprocketError: reason || null,
-    })
-  }
-
-  return NextResponse.json({
-    ok: true,
-    pincode,
-    serviceable: true,
-    source: "fallback",
-    city: fallback.city,
-    state: fallback.state,
-    courierName: null,
-    etd: null,
-    estimatedDeliveryDays: fallback.estimatedDeliveryDays,
-    rate: null,
-    message: `Delivery available in ${fallback.city}.`,
-    shiprocketError: reason || null,
-  })
-}
+import { getServiceablePincode } from "@/lib/serviceable-pincodes"
 
 export async function GET(request: Request) {
   try {
@@ -66,36 +17,39 @@ export async function GET(request: Request) {
       )
     }
 
-    const data = await checkShiprocketServiceability(pincode)
-    const bestCourier = getBestCourier(data)
-    const serviceable = Boolean(bestCourier)
+    const match = getServiceablePincode(pincode)
+
+    if (!match) {
+      return NextResponse.json({
+        ok: true,
+        pincode,
+        serviceable: false,
+        source: "shiprocket-file",
+        message: "Delivery is currently not serviceable for this pincode.",
+      })
+    }
 
     return NextResponse.json({
       ok: true,
       pincode,
-      serviceable,
-      source: "shiprocket",
-      courierName: bestCourier?.courier_name || null,
-      etd: bestCourier?.etd || null,
-      estimatedDeliveryDays: bestCourier?.estimated_delivery_days || null,
-      rate: bestCourier?.rate || bestCourier?.freight_charge || null,
-      shiprocket: data,
-      message: serviceable
-        ? "Delivery is available for this pincode."
-        : "Delivery is currently not serviceable for this pincode.",
+      serviceable: true,
+      source: "shiprocket-file",
+      city: match.city || null,
+      cities: match.cities || [],
+      state: match.state || null,
+      zone: match.zones?.[0] || null,
+      zones: match.zones || [],
+      courierName: match.couriers?.[0] || null,
+      couriers: match.couriers || [],
+      courierCount: match.couriers?.length || 0,
+      estimatedDeliveryDays: match.estimatedDeliveryDays,
+      rate: null,
+      message: match.city
+        ? `Delivery available in ${match.city}.`
+        : "Delivery is available for this pincode.",
     })
   } catch (error) {
-    console.error("SHIPROCKET SERVICEABILITY ROUTE ERROR:", error)
-
-    const url = new URL(request.url)
-    const pincode = url.searchParams.get("pincode")?.replace(/\D/g, "").slice(0, 6)
-
-    if (pincode?.length === 6) {
-      return fallbackResponse(
-        pincode,
-        error instanceof Error ? error.message : "Shiprocket unavailable"
-      )
-    }
+    console.error("SHIPROCKET SERVICEABILITY FILE ROUTE ERROR:", error)
 
     return NextResponse.json(
       {

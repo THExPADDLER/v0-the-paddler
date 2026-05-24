@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { after, NextResponse } from "next/server"
 import crypto from "crypto"
 import {
   collection,
@@ -226,15 +226,23 @@ export async function POST(request: Request) {
       updatedAt: new Date().toISOString(),
     })
 
-    await syncInvoicePayment(orderId)
-    const sideEffects = await runSuccessSideEffects(orderId)
+    after(async () => {
+      try {
+        await syncInvoicePayment(orderId)
+        await runSuccessSideEffects(orderId)
+      } catch (error) {
+        console.error("RAZORPAY BACKGROUND SIDE EFFECT ERROR:", {
+          orderId,
+          error,
+        })
+      }
+    })
 
     return NextResponse.json({
       ok: true,
       orderId,
       paymentStatus: "success",
-      shipmentQueued: !sideEffects.shipmentError,
-      ...sideEffects,
+      shipmentQueued: true,
     })
   } catch (error) {
     console.error("RAZORPAY VERIFY ERROR:", error)

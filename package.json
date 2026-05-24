@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "generate:serviceability": "node scripts/generate_shiprocket_serviceability.mjs",
     "start": "next start",
     "lint": "eslint ."
   },
