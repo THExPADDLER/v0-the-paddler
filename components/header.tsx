@@ -190,7 +190,7 @@ export function Header() {
                 </button>
 
                 {profileOpen && (
-                  <div className="absolute right-0 z-[2002] mt-3 w-64 bg-background border border-border shadow-2xl p-5">
+                  <div className="fixed left-4 right-4 top-20 z-[3002] bg-background border border-border shadow-2xl p-5 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-3 sm:w-64">
                     {user ? (
                       <>
                         <p className="text-sm font-bold text-foreground truncate">
@@ -247,7 +247,7 @@ export function Header() {
           </div>
 
           {menuOpen && !isAdminRoute && (
-            <div className="absolute left-4 top-20 z-[2002] w-72 bg-background border border-border shadow-2xl p-6">
+            <div className="fixed inset-x-0 bottom-0 top-16 z-[3002] w-screen overflow-y-auto bg-background border-t border-border p-8 shadow-2xl sm:absolute sm:bottom-auto sm:left-4 sm:top-20 sm:w-72 sm:border sm:p-6">
               <p className="text-xs tracking-[0.35em] text-muted-foreground mb-6">
                 MENU
               </p>
