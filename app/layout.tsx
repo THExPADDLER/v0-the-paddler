@@ -23,9 +23,10 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "THE PADDDLER | Not Just Clothing. A Statement.",
+  metadataBase: new URL("https://thepaddler.in"),
+  title: "THE PADDLER | Not Just Clothing. A Statement.",
   description:
-    "Built for those who move different. Premium streetwear for individuals who don't follow trends — they create them.",
+    "Built for those who move different. Premium streetwear for individuals who don't follow trends - they create them.",
   keywords: [
     "streetwear",
     "clothing",

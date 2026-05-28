@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -131,7 +131,7 @@ const loadRazorpayCheckout = () => {
 const createInvoiceNumber = () => {
   const now = new Date()
   const datePart = [
-    now.getFullYear(),
+    String(now.getFullYear()).slice(-2),
     String(now.getMonth() + 1).padStart(2, "0"),
     String(now.getDate()).padStart(2, "0"),
   ].join("")
@@ -140,9 +140,8 @@ const createInvoiceNumber = () => {
     String(now.getMinutes()).padStart(2, "0"),
     String(now.getSeconds()).padStart(2, "0"),
   ].join("")
-  const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase()
 
-  return `TP-INV-${datePart}-${timePart}-${randomPart}`
+  return `TP-${datePart}-${timePart}`
 }
 
 const validateSharedInventory = async (
@@ -321,7 +320,7 @@ export default function CheckoutPage() {
     checkDeliveryServiceability(selectedAddress.pincode)
   }, [selectedAddress?.pincode])
 
-  const hasUserAlreadyUsedCoupon = async (code: string) => {
+  const hasUserAlreadyUsedCoupon = useCallback(async (code: string) => {
     if (!user) return false
 
     const ordersQuery = query(
@@ -342,9 +341,12 @@ export default function CheckoutPage() {
 
       return couponBlockingStatuses.has(status) || paymentStatus === "success"
     })
-  }
+  }, [user])
 
-  const applyCoupon = async (couponCode = coupon, options?: { silent?: boolean }) => {
+  const applyCoupon = useCallback(async (
+    couponCode = coupon,
+    options?: { silent?: boolean }
+  ) => {
     const code = couponCode.trim().toUpperCase()
 
     if (!code) {
@@ -390,7 +392,7 @@ export default function CheckoutPage() {
       setCouponDiscount(0)
       if (!options?.silent) alert("Unable to check coupon right now.")
     }
-  }
+  }, [coupon, hasUserAlreadyUsedCoupon, totalPrice])
 
   useEffect(() => {
     if (totalPrice <= 0 || couponDiscount > 0) return
@@ -403,7 +405,7 @@ export default function CheckoutPage() {
     autoAppliedCouponRef.current = applyKey
     setCoupon(savedCoupon)
     applyCoupon(savedCoupon, { silent: true })
-  }, [totalPrice, couponDiscount])
+  }, [applyCoupon, totalPrice, couponDiscount])
 
   const handlePayment = async () => {
     if (items.length === 0) {
@@ -496,6 +498,7 @@ export default function CheckoutPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${await user.getIdToken()}`,
         },
         body: JSON.stringify({
           orderId: orderRef.id,

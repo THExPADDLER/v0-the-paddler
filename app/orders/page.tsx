@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -176,13 +176,11 @@ export default function OrdersPage() {
   const [returnReason, setReturnReason] = useState("Size issue")
   const [returnDescription, setReturnDescription] = useState("")
   const [returnImage, setReturnImage] = useState<File | null>(null)
-  const [checkingPaymentOrderId, setCheckingPaymentOrderId] = useState<string | null>(null)
   const [retryingPaymentOrderId, setRetryingPaymentOrderId] = useState<string | null>(null)
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null)
-  const autoCheckedPayments = useRef<Set<string>>(new Set())
   const autoSyncedShipments = useRef<Set<string>>(new Set())
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     if (loading) return
 
     if (!user) {
@@ -214,40 +212,11 @@ export default function OrdersPage() {
     } finally {
       setLoadingOrders(false)
     }
-  }
+  }, [loading, router, user])
 
   useEffect(() => {
     fetchOrders()
-  }, [loading, user])
-
-  useEffect(() => {
-    const pendingPhonePeOrders = orders.filter(
-      (order) =>
-        order.payment?.gateway === "phonepe" &&
-        order.payment?.status !== "success" &&
-        order.payment?.status !== "failed" &&
-        !autoCheckedPayments.current.has(order.id)
-    )
-
-    if (pendingPhonePeOrders.length === 0) return
-
-    pendingPhonePeOrders.slice(0, 3).forEach((order) => {
-      autoCheckedPayments.current.add(order.id)
-
-      fetch(`/api/phonepe/status?orderId=${encodeURIComponent(order.id)}`, {
-        cache: "no-store",
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          if (data?.paymentStatus === "success" || data?.paymentStatus === "failed") {
-            fetchOrders()
-          }
-        })
-        .catch((error) => {
-          console.error("ORDER AUTO PAYMENT CHECK ERROR:", error)
-        })
-    })
-  }, [orders])
+  }, [fetchOrders])
 
   useEffect(() => {
     const trackableOrders = orders.filter(
@@ -262,10 +231,17 @@ export default function OrdersPage() {
     trackableOrders.slice(0, 3).forEach((order) => {
       autoSyncedShipments.current.add(order.id)
 
-      fetch(`/api/shiprocket/track?orderId=${encodeURIComponent(order.id)}`, {
-        cache: "no-store",
-      })
-        .then((response) => response.json())
+      user
+        ?.getIdToken()
+        .then((token) =>
+          fetch(`/api/shiprocket/track?orderId=${encodeURIComponent(order.id)}`, {
+            cache: "no-store",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+        )
+        .then((response) => response?.json())
         .then((data) => {
           if (data?.ok) {
             fetchOrders()
@@ -275,53 +251,7 @@ export default function OrdersPage() {
           console.error("ORDER AUTO SHIPROCKET SYNC ERROR:", error)
         })
     })
-  }, [orders])
-
-  const checkPaymentStatus = async (order: CustomerOrder) => {
-    setCheckingPaymentOrderId(order.id)
-
-    try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 20000)
-      const response = await fetch(
-        `/api/phonepe/status?orderId=${encodeURIComponent(order.id)}`,
-        { signal: controller.signal }
-      )
-      clearTimeout(timeout)
-      const data = await response.json()
-
-      if (!response.ok || !data?.ok) {
-        console.error("PAYMENT STATUS REFRESH ERROR:", data)
-        alert(data?.message || "Unable to refresh payment status.")
-        return
-      }
-
-      await fetchOrders()
-
-      if (data.paymentStatus === "success") {
-        alert(
-          data.shipmentError
-            ? `Payment is successful, but Shiprocket needs attention: ${data.shipmentError}`
-            : "Payment confirmed. Shipment creation has been triggered."
-        )
-        return
-      }
-
-      if (data.needsManualVerification) {
-        alert(
-          "PhonePe could not return a readable status to the website. If money is deducted, our team will verify it in the PhonePe dashboard and confirm the order."
-        )
-        return
-      }
-
-      alert(`Current payment status: ${formatStatus(data.paymentStatus || "pending")}`)
-    } catch (error) {
-      console.error("PAYMENT STATUS REFRESH ERROR:", error)
-      alert("Unable to refresh payment status.")
-    } finally {
-      setCheckingPaymentOrderId(null)
-    }
-  }
+  }, [fetchOrders, orders, user])
 
   const retryRazorpayPayment = async (order: CustomerOrder) => {
     if (!user) {
@@ -346,6 +276,7 @@ export default function OrdersPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${await user.getIdToken()}`,
         },
         body: JSON.stringify({
           orderId: order.id,
@@ -501,6 +432,7 @@ export default function OrdersPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${await user.getIdToken()}`,
         },
         body: JSON.stringify({
           orderId: order.id,
@@ -573,11 +505,7 @@ export default function OrdersPage() {
     setCancellingOrderId(order.id)
 
     try {
-      const response = await fetch(
-        order.payment?.gateway === "razorpay"
-          ? "/api/razorpay/refund"
-          : "/api/phonepe/refund",
-        {
+      const response = await fetch("/api/razorpay/refund", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -588,8 +516,7 @@ export default function OrdersPage() {
           reason: "Customer cancelled from orders page",
           cancelledBy: "customer",
         }),
-        }
-      )
+      })
       const data = await response.json()
 
       await fetchOrders()
@@ -903,20 +830,6 @@ export default function OrdersPage() {
                                 TRACK SHIPMENT
                               </Link>
                             )}
-
-                            {order.payment?.gateway === "phonepe" &&
-                              order.payment?.status !== "success" && (
-                                <button
-                                  type="button"
-                                  onClick={() => checkPaymentStatus(order)}
-                                  disabled={checkingPaymentOrderId === order.id}
-                                  className="px-5 py-3 border border-white/15 text-sm font-bold hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                  {checkingPaymentOrderId === order.id
-                                    ? "CHECKING..."
-                                    : "CHECK PAYMENT STATUS"}
-                                </button>
-                              )}
 
                             {order.payment?.gateway === "razorpay" &&
                               order.payment?.status !== "success" &&

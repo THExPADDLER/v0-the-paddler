@@ -73,11 +73,19 @@ Required environment variables are stored in `.env.local` locally and in Vercel 
 
 ## Environment Variables
 
-Create `.env.local` for local development. Do not commit secrets.
+Copy `.env.example` to `.env.local` for local development, then fill the values. Do not commit secrets.
 
 ```bash
 NEXT_PUBLIC_RAZORPAY_KEY_ID=
 RAZORPAY_KEY_SECRET=
+
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_APP_ID=
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=
 
 SHIPROCKET_EMAIL=
 SHIPROCKET_PASSWORD=
@@ -92,7 +100,7 @@ SMTP_PASS=
 SMTP_FROM=
 ```
 
-Firebase public config is kept in the client Firebase setup. Secret credentials must stay server-side only.
+Firebase config values are public client configuration, but keeping them in environment variables makes local, Vercel, and future Firebase project changes safer to manage. Secret credentials must stay server-side only.
 
 ## Development
 
@@ -128,6 +136,7 @@ npm run build
 
 ## Production Checklist
 
+- Follow the detailed launch checklist in `docs/PRODUCTION_LAUNCH_CHECKLIST.md`.
 - Add the final domain `thepaddler.in` and `www.thepaddler.in`
 - Add the production domain to Firebase authorized domains
 - Replace Razorpay test keys with live keys after Razorpay live approval

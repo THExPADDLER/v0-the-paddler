@@ -2,10 +2,13 @@ import { NextResponse } from "next/server"
 import { doc, getDoc, updateDoc } from "firebase/firestore"
 
 import { db } from "@/lib/firebase"
+import { requireStaffRequest } from "@/lib/admin-auth"
 import { deductSharedInventoryForItems } from "@/lib/inventory"
 
 export async function POST(request: Request) {
   try {
+    await requireStaffRequest(request)
+
     const { orderId } = await request.json()
 
     if (!orderId) {

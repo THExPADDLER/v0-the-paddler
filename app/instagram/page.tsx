@@ -3,6 +3,7 @@
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Instagram, ExternalLink } from "lucide-react"
+import Link from "next/link"
 
 export default function InstagramPage() {
   const instagramHandle = "thepaddler.in"
@@ -325,7 +326,7 @@ export default function InstagramPage() {
               BE PART OF THE CULTURE
             </h2>
             <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Tag us @{instagramHandle} to get featured. Show us how you rock PADDDLER.
+              Tag us @{instagramHandle} to get featured. Show us how you rock PADDLER.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
@@ -337,12 +338,12 @@ export default function InstagramPage() {
                 <Instagram className="w-5 h-5" />
                 Follow @{instagramHandle}
               </a>
-              <a
+              <Link
                 href="/#shop"
                 className="inline-flex items-center justify-center gap-2 border border-foreground text-foreground px-8 py-4 text-sm font-medium tracking-wider hover:bg-foreground hover:text-background transition-colors"
               >
                 Shop the Drop
-              </a>
+              </Link>
             </div>
           </div>
         </section>

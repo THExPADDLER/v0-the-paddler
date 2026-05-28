@@ -51,12 +51,12 @@ export function BrandStory() {
             <h2 className="max-w-xl text-4xl sm:text-5xl lg:text-6xl font-black tracking-normal leading-[0.95] mb-7">
               WHY
               <br />
-              PADDDLER?
+              PADDLER?
             </h2>
 
             <div className="space-y-5 text-white/68 text-base sm:text-lg leading-relaxed max-w-xl">
               <p>
-                Padddler is not just a brand. It&apos;s a mindset for people who
+                PADDLER is not just a brand. It&apos;s a mindset for people who
                 do not wait for culture to move. They move first.
               </p>
               <p>

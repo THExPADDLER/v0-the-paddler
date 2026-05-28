@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server"
 
+import { assertOrderAccess, requireUserRequest } from "@/lib/admin-auth"
 import { sendEmail } from "@/lib/email"
+import { firebaseProjectId } from "@/lib/firebase-config"
 
-const projectId = "the-paddler-6969"
+const projectId = firebaseProjectId
 const firestoreBaseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`
 
 const fetchWithTimeout = async (
@@ -245,6 +247,7 @@ const getDocumentPath = (documentName: string) => {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUserRequest(request)
     const authorization = getAuthHeader(request)
     const {
       orderId,
@@ -286,6 +289,18 @@ export async function POST(request: Request) {
     }
 
     const order = fromFirestoreFields(orderDoc.fields)
+    assertOrderAccess(auth, order, "cancel this order")
+
+    if (cancelledBy === "admin" && auth.role !== "admin" && auth.role !== "staff") {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Admin or staff access is required to cancel as admin.",
+        },
+        { status: 403 }
+      )
+    }
+
     const payment = (order.payment || {}) as Record<string, unknown>
     const pricing = (order.pricing || {}) as Record<string, unknown>
     const paymentStatus = String(payment.status || "pending")

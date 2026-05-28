@@ -3,6 +3,7 @@ import { addDoc, collection, doc, getDoc, updateDoc } from "firebase/firestore/l
 
 import { serverDb } from "@/lib/firebase-server"
 import { createShiprocketReturnForOrder } from "@/lib/shiprocket"
+import { assertOrderAccess, requireUserRequest } from "@/lib/admin-auth"
 
 const RTO_CHARGE = 70
 const RETURN_WINDOW_DAYS = 3
@@ -22,6 +23,7 @@ const isReturnWindowOpen = (order: any) => {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUserRequest(request)
     const {
       orderId,
       userId,
@@ -55,6 +57,7 @@ export async function POST(request: Request) {
     }
 
     const order = orderSnap.data()
+    assertOrderAccess(auth, order, "request a return for this order")
 
     if (order.status !== "delivered") {
       return NextResponse.json(
@@ -116,7 +119,7 @@ export async function POST(request: Request) {
       rtoCharge: RTO_CHARGE,
       refundAmount,
       shiprocketReturn,
-      message: `Return requested. Refund amount will be ₹${refundAmount} after deducting ₹${RTO_CHARGE} RTO charges.`,
+      message: `Return requested. Refund amount will be Rs ${refundAmount} after deducting Rs ${RTO_CHARGE} RTO charges.`,
     })
   } catch (error) {
     console.error("SHIPROCKET RETURN ROUTE ERROR:", error)

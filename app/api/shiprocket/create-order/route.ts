@@ -4,9 +4,12 @@ import {
   createShiprocketShipment,
   createShiprocketShipmentForOrder,
 } from "@/lib/shiprocket"
+import { requireStaffRequest } from "@/lib/admin-auth"
 
 export async function POST(request: Request) {
   try {
+    await requireStaffRequest(request)
+
     const { orderId, order } = await request.json()
 
     if (!orderId && !order?.id) {

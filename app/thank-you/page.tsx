@@ -3,7 +3,7 @@
 import { Suspense } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { CheckCircle2, PackageCheck, Sparkles, Truck } from "lucide-react"
+import { CheckCircle2, Download, PackageCheck, Sparkles, Truck } from "lucide-react"
 
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
@@ -72,6 +72,15 @@ function ThankYouContent() {
           </div>
 
           <div className="mt-10 flex flex-wrap justify-center gap-4">
+            {orderId && (
+              <Link
+                href={`/invoice/${encodeURIComponent(orderId)}`}
+                className="inline-flex items-center gap-2 bg-green-300 px-8 py-4 text-sm font-black uppercase text-black transition hover:bg-green-200"
+              >
+                <Download className="h-4 w-4" />
+                Download Invoice
+              </Link>
+            )}
             <Link
               href="/orders"
               className="bg-foreground px-8 py-4 text-sm font-black uppercase text-background transition hover:bg-foreground/90"

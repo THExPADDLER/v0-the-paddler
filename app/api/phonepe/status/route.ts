@@ -4,6 +4,7 @@ import { collection, doc, getDoc, getDocs, query, runTransaction, updateDoc, whe
 import { serverDb } from "@/lib/firebase-server"
 import { createShiprocketShipmentForOrder } from "@/lib/shiprocket"
 import { createInventoryKey, emptySizeStock, type SizeStock } from "@/lib/inventory"
+import { assertOrderAccess, requireUserRequest } from "@/lib/admin-auth"
 
 const fetchWithTimeout = async (
   input: string,
@@ -322,6 +323,7 @@ const runSuccessSideEffects = async (orderId: string) => {
 
 export async function GET(request: Request) {
   try {
+    const auth = await requireUserRequest(request)
     const url = new URL(request.url)
     const orderId = url.searchParams.get("orderId")
 
@@ -335,11 +337,24 @@ export async function GET(request: Request) {
       )
     }
 
-    const { apiBaseUrl } = getPhonePeConfig()
-    const accessToken = await getAccessToken()
     const orderRef = doc(serverDb, "orders", orderId)
     const orderSnap = await getDoc(orderRef)
     const orderData = orderSnap.exists() ? orderSnap.data() : null
+
+    if (!orderData) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Order not found.",
+        },
+        { status: 404 }
+      )
+    }
+
+    assertOrderAccess(auth, orderData, "check payment status for this order")
+
+    const { apiBaseUrl } = getPhonePeConfig()
+    const accessToken = await getAccessToken()
     const paymentData = (orderData?.payment || {}) as Record<string, unknown>
     const merchantOrderId = String(
       paymentData.phonepeMerchantOrderId || orderId

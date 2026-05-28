@@ -3,6 +3,7 @@ import { doc, getDoc, updateDoc } from "firebase/firestore/lite"
 
 import { serverDb } from "@/lib/firebase-server"
 import { razorpayFetch } from "@/lib/razorpay"
+import { assertOrderAccess, requireUserRequest } from "@/lib/admin-auth"
 
 type RefundResponse = {
   id: string
@@ -12,6 +13,7 @@ type RefundResponse = {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUserRequest(request)
     const { orderId, reason, cancelledBy } = await request.json()
 
     if (!orderId) {
@@ -38,6 +40,18 @@ export async function POST(request: Request) {
     }
 
     const order = orderSnap.data()
+    assertOrderAccess(auth, order, "cancel this order")
+
+    if (cancelledBy === "admin" && auth.role !== "admin" && auth.role !== "staff") {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Admin or staff access is required to cancel as admin.",
+        },
+        { status: 403 }
+      )
+    }
+
     const payment = (order.payment || {}) as Record<string, unknown>
     const paymentStatus = String(payment.status || "pending")
     const razorpayPaymentId = String(payment.razorpayPaymentId || "")
@@ -92,7 +106,10 @@ export async function POST(request: Request) {
     await updateDoc(orderRef, {
       status: "cancelled",
       cancelledAt: now,
-      cancelledBy: cancelledBy || "admin",
+      cancelledBy:
+        auth.role === "admin" || auth.role === "staff"
+          ? cancelledBy || "admin"
+          : "customer",
       cancelReason: reason || "Order cancelled",
       "payment.refundStatus": refundStatus,
       "payment.razorpayRefund": refund,

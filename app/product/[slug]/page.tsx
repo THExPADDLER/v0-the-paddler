@@ -119,7 +119,7 @@ export default function ProductPage() {
     const fetchProduct = async () => {
       const localProduct = getProductBySlug(slug) || null
 
-      const useLocalProduct = () => {
+      const applyLocalProduct = () => {
         setProduct(localProduct)
         setRelatedProducts(localProduct ? getRelatedProducts(slug, 3) : [])
       }
@@ -131,7 +131,7 @@ export default function ProductPage() {
         const productSnap = await getDoc(productRef)
 
         if (!productSnap.exists()) {
-          useLocalProduct()
+          applyLocalProduct()
           return
         }
 
@@ -162,7 +162,7 @@ export default function ProductPage() {
         setRelatedProducts(relatedData)
       } catch (error) {
         console.error("PRODUCT FETCH ERROR:", error)
-        useLocalProduct()
+        applyLocalProduct()
       } finally {
         setLoading(false)
       }

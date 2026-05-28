@@ -317,7 +317,11 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => null)
 
-    console.log("PHONEPE CALLBACK:", body)
+    console.info("PHONEPE CALLBACK RECEIVED:", {
+      merchantOrderId:
+        body?.payload?.merchantOrderId || body?.merchantOrderId || null,
+      event: body?.event || body?.eventName || null,
+    })
 
     const merchantOrderId =
       findValueByKeys(body, [

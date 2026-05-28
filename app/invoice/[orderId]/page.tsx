@@ -150,7 +150,7 @@ export default function InvoicePage() {
             onClick={() => window.print()}
             className="bg-black text-white px-6 py-3 font-black tracking-wide hover:bg-neutral-800 transition-colors"
           >
-            PRINT / SAVE PDF
+            DOWNLOAD / SAVE PDF
           </button>
         </div>
 

@@ -3,6 +3,7 @@ import { doc, getDoc, updateDoc } from "firebase/firestore/lite"
 
 import { serverDb } from "@/lib/firebase-server"
 import { trackShiprocketAwb } from "@/lib/shiprocket"
+import { assertOrderAccess, requireUserRequest } from "@/lib/admin-auth"
 
 const findStringByKeys = (value: unknown, keys: string[]): string | null => {
   if (!value || typeof value !== "object") return null
@@ -77,6 +78,7 @@ export async function GET(request: Request) {
 
     let awb = awbParam || ""
     let orderRef = null
+    let order: Record<string, unknown> | null = null
 
     if (orderId) {
       orderRef = doc(serverDb, "orders", orderId)
@@ -92,8 +94,9 @@ export async function GET(request: Request) {
         )
       }
 
-      const order = orderSnap.data()
-      awb = awb || order?.shipment?.awb || order?.trackingId || ""
+      order = orderSnap.data()
+      const shipment = order.shipment as Record<string, unknown> | undefined
+      awb = awb || String(shipment?.awb || order.trackingId || "")
     }
 
     if (!awb) {
@@ -109,7 +112,10 @@ export async function GET(request: Request) {
     const tracking = await trackShiprocketAwb(awb)
     const normalizedStatus = normalizeShiprocketStatus(tracking)
 
-    if (orderRef) {
+    if (orderRef && order && request.headers.get("authorization")) {
+      const auth = await requireUserRequest(request)
+      assertOrderAccess(auth, order, "sync tracking for this order")
+
       await updateDoc(orderRef, {
         status: normalizedStatus,
         "shipment.status": normalizedStatus,

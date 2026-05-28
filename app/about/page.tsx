@@ -4,8 +4,8 @@ import { Footer } from "@/components/footer"
 import { Newsletter } from "@/components/newsletter"
 
 export const metadata = {
-  title: "About | THE PADDDLER",
-  description: "The story behind THE PADDDLER - not just clothing, a statement.",
+  title: "About | THE PADDLER",
+  description: "The story behind THE PADDLER - not just clothing, a statement.",
 }
 
 export default function AboutPage() {
@@ -17,7 +17,7 @@ export default function AboutPage() {
         <section className="relative h-[60vh] min-h-[400px]">
           <Image
             src="/images/about-hero.jpg"
-            alt="THE PADDDLER brand story"
+            alt="THE PADDLER brand story"
             fill
             className="object-cover"
             priority
@@ -44,11 +44,11 @@ export default function AboutPage() {
                   The Beginning
                 </span>
                 <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mt-2 mb-6">
-                  WHY PADDDLER?
+                  WHY PADDLER?
                 </h2>
                 <div className="space-y-4 text-muted-foreground leading-relaxed">
                   <p>
-                    Padddler is not just a brand. It&apos;s a mindset. Built for individuals 
+                    PADDLER is not just a brand. It&apos;s a mindset. Built for individuals 
                     who don&apos;t follow trends — they create them.
                   </p>
                   <p>
@@ -65,7 +65,7 @@ export default function AboutPage() {
               <div className="relative aspect-[4/5] bg-secondary">
                 <Image
                   src="/images/founder.jpg"
-                  alt="The creative vision behind PADDDLER"
+                  alt="The creative vision behind PADDLER"
                   fill
                   className="object-cover"
                 />
@@ -121,7 +121,7 @@ export default function AboutPage() {
               <div className="relative aspect-square bg-secondary order-2 lg:order-1">
                 <Image
                   src="/images/values.jpg"
-                  alt="PADDDLER craftsmanship and attention to detail"
+                  alt="PADDLER craftsmanship and attention to detail"
                   fill
                   className="object-cover"
                 />
@@ -141,7 +141,7 @@ export default function AboutPage() {
                   </p>
                   <p>
                     Our designs go through multiple iterations before they hit the streets. 
-                    We test, we refine, we perfect. Because when you wear PADDDLER, you&apos;re 
+                    We test, we refine, we perfect. Because when you wear PADDLER, you&apos;re 
                     not just wearing clothes — you&apos;re wearing a statement.
                   </p>
                 </div>

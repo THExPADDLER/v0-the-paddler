@@ -8,10 +8,10 @@ export function Footer() {
           {/* Logo & Copyright */}
           <div>
             <Link href="/" className="text-lg font-bold tracking-wider text-foreground">
-              THE PADDDLER
+              THE PADDLER
             </Link>
             <p className="text-xs text-muted-foreground mt-2">
-              © 2024 THE PADDDLER. ALL RIGHTS RESERVED.
+              © 2024 THE PADDLER. ALL RIGHTS RESERVED.
             </p>
           </div>
 

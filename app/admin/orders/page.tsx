@@ -18,7 +18,6 @@ import { Footer } from "@/components/footer"
 import { ProtectedRoute } from "@/components/protected-route"
 import { auth } from "@/lib/firebase"
 import { db } from "@/lib/firebase"
-import { deductSharedInventoryForItems } from "@/lib/inventory"
 import type { CartItem } from "@/lib/cart-context"
 
 type AdminOrder = {
@@ -106,10 +105,8 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const [checkingPaymentId, setCheckingPaymentId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [deductingInventoryId, setDeductingInventoryId] = useState<string | null>(null)
-  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null)
   const [syncingShipmentId, setSyncingShipmentId] = useState<string | null>(null)
   const [creatingShipmentId, setCreatingShipmentId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState("all")
@@ -178,52 +175,6 @@ export default function AdminOrdersPage() {
     }
   }
 
-  const checkPaymentAndShipment = async (order: AdminOrder) => {
-    setCheckingPaymentId(order.id)
-
-    try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 20000)
-      const response = await fetch(
-        `/api/phonepe/status?orderId=${encodeURIComponent(order.id)}`,
-        { signal: controller.signal }
-      )
-      clearTimeout(timeout)
-      const data = await response.json()
-
-      if (!response.ok || !data?.ok) {
-        console.error("ADMIN PAYMENT CHECK ERROR:", data)
-        alert(data?.message || "Unable to check payment status.")
-        return
-      }
-
-      await fetchOrders()
-
-      if (data.paymentStatus === "success") {
-        alert(
-          data.shipmentError
-            ? `Payment successful, but Shiprocket failed: ${data.shipmentError}`
-            : "Payment successful. Shiprocket shipment creation has been triggered."
-        )
-        return
-      }
-
-      if (data.needsManualVerification) {
-        alert(
-          "PhonePe returned no readable status body. Verify this transaction in the PhonePe dashboard, then use Mark Paid."
-        )
-        return
-      }
-
-      alert(`Current payment status: ${formatStatus(data.paymentStatus || "pending")}`)
-    } catch (error) {
-      console.error("ADMIN PAYMENT CHECK ERROR:", error)
-      alert("Unable to check payment status.")
-    } finally {
-      setCheckingPaymentId(null)
-    }
-  }
-
   const cancelOrder = async (order: AdminOrder) => {
     if (order.status === "cancelled") {
       alert("This order is already cancelled.")
@@ -251,11 +202,7 @@ export default function AdminOrdersPage() {
     setCancellingId(order.id)
 
     try {
-      const response = await fetch(
-        order.payment?.gateway === "razorpay"
-          ? "/api/razorpay/refund"
-          : "/api/phonepe/refund",
-        {
+      const response = await fetch("/api/razorpay/refund", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -266,8 +213,7 @@ export default function AdminOrdersPage() {
           reason: "Admin cancelled from order panel",
           cancelledBy: "admin",
         }),
-        }
-      )
+      })
       const data = await response.json()
 
       await fetchOrders()
@@ -293,6 +239,9 @@ export default function AdminOrdersPage() {
         `/api/shiprocket/track?orderId=${encodeURIComponent(order.id)}`,
         {
           cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${await auth.currentUser?.getIdToken()}`,
+          },
         }
       )
       const data = await response.json()
@@ -325,6 +274,7 @@ export default function AdminOrdersPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${await auth.currentUser?.getIdToken()}`,
         },
         body: JSON.stringify({
           orderId: order.id,
@@ -360,6 +310,7 @@ export default function AdminOrdersPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${await auth.currentUser?.getIdToken()}`,
         },
         body: JSON.stringify({
           orderId: order.id,
@@ -379,101 +330,6 @@ export default function AdminOrdersPage() {
       alert("Unable to deduct inventory.")
     } finally {
       setDeductingInventoryId(null)
-    }
-  }
-
-  const markPaidAfterVerification = async (order: AdminOrder) => {
-    const transactionReference = window.prompt(
-      "Enter PhonePe transaction reference from the PhonePe dashboard. Example: OMO..."
-    )
-
-    if (transactionReference === null) return
-
-    const confirmed = window.confirm(
-      "Only continue if PhonePe dashboard shows this payment as COMPLETED. Mark this order as paid?"
-    )
-
-    if (!confirmed) return
-
-    setMarkingPaidId(order.id)
-
-    try {
-      const now = new Date().toISOString()
-
-      await updateDoc(doc(db, "orders", order.id), {
-        status: "paid",
-        "payment.status": "success",
-        "payment.phonepeState": "ADMIN_VERIFIED",
-        "payment.verifiedByAdmin": true,
-        "payment.verifiedAt": now,
-        "payment.transactionReference": transactionReference.trim() || null,
-        updatedAt: now,
-      })
-
-      let inventoryError = null
-      let shipmentError = null
-
-      if (!order.inventoryDeducted) {
-        try {
-          await deductSharedInventoryForItems(order.items || [])
-          await updateDoc(doc(db, "orders", order.id), {
-            inventoryDeducted: true,
-            inventoryDeductedAt: new Date().toISOString(),
-            inventoryError: null,
-          })
-        } catch (error) {
-          inventoryError =
-            error instanceof Error
-              ? error.message
-              : "Unable to deduct shared inventory."
-          await updateDoc(doc(db, "orders", order.id), {
-            inventoryError,
-            updatedAt: new Date().toISOString(),
-          })
-        }
-      }
-
-      const response = await fetch("/api/shiprocket/create-order", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          order: {
-            ...order,
-            status: "paid",
-            payment: {
-              ...(order.payment || {}),
-              status: "success",
-            },
-          },
-        }),
-      })
-      const data = await response.json()
-
-      if (response.ok && data?.ok && data.shipment) {
-        await updateDoc(doc(db, "orders", order.id), {
-          shipment: data.shipment,
-          trackingId: data.shipment.awb || data.shipment.shipmentId,
-          trackingUrl: data.shipment.trackingUrl,
-          status: "processing",
-          updatedAt: new Date().toISOString(),
-        })
-      } else {
-        shipmentError = data?.message || "Unable to create Shiprocket shipment."
-      }
-
-      await fetchOrders()
-      alert(
-        shipmentError || inventoryError
-          ? `Payment marked paid. Attention needed: ${shipmentError || inventoryError}`
-          : "Payment marked paid. Inventory and shipment sync attempted."
-      )
-    } catch (error) {
-      console.error("ADMIN MARK PAID ERROR:", error)
-      alert("Unable to mark order paid.")
-    } finally {
-      setMarkingPaidId(null)
     }
   }
 
@@ -700,32 +556,6 @@ export default function AdminOrdersPage() {
                           >
                             Invoice
                           </Link>
-
-                          {order.payment?.gateway === "phonepe" && !isPaid && (
-                            <button
-                              type="button"
-                              onClick={() => checkPaymentAndShipment(order)}
-                              disabled={checkingPaymentId === order.id}
-                              className="px-4 py-3 border border-border text-sm font-black hover:bg-secondary disabled:opacity-50"
-                            >
-                              {checkingPaymentId === order.id
-                                ? "Checking..."
-                                : "Check Payment"}
-                            </button>
-                          )}
-
-                          {order.payment?.gateway === "phonepe" && !isPaid && (
-                            <button
-                              type="button"
-                              onClick={() => markPaidAfterVerification(order)}
-                              disabled={markingPaidId === order.id}
-                              className="px-4 py-3 border border-green-700 text-sm font-black text-green-400 hover:bg-secondary disabled:opacity-50"
-                            >
-                              {markingPaidId === order.id
-                                ? "Marking..."
-                                : "Mark Paid"}
-                            </button>
-                          )}
 
                           {isPaid && !order.inventoryDeducted && (
                             <button

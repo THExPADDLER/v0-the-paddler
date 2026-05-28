@@ -278,8 +278,6 @@ export default function SignupPage() {
           { merge: true }
         );
 
-        console.log("Signup user:", linkedResult.user);
-        console.log("Gender:", gender);
       } catch (linkError) {
         await deleteUser(result.user).catch((deleteError) => {
           console.error("SIGNUP CLEANUP DELETE ERROR:", deleteError);
@@ -315,8 +313,6 @@ export default function SignupPage() {
       }
 
       const result = await signInWithPopup(auth, provider);
-
-      console.log("Google signup user:", result.user);
 
       alert("Google Signup Success");
       sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);

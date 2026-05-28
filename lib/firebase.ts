@@ -3,9 +3,11 @@ import { getAuth } from "firebase/auth"
 import { initializeFirestore } from "firebase/firestore"
 import { getStorage } from "firebase/storage"
 
+import { defaultFirebaseAuthDomain, firebaseClientConfig } from "@/lib/firebase-config"
+
 const getAuthDomain = () => {
   if (typeof window === "undefined") {
-    return "the-paddler-6969.firebaseapp.com"
+    return firebaseClientConfig.authDomain
   }
 
   const hostname = window.location.hostname
@@ -14,17 +16,12 @@ const getAuthDomain = () => {
     return hostname
   }
 
-  return "the-paddler-6969.firebaseapp.com"
+  return firebaseClientConfig.authDomain || defaultFirebaseAuthDomain
 }
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCQqRihdwwSiF-wJb1PL19HIs4rrGLryEI",
+  ...firebaseClientConfig,
   authDomain: getAuthDomain(),
-  projectId: "the-paddler-6969",
-  storageBucket: "the-paddler-6969.firebasestorage.app",
-  messagingSenderId: "48199959190",
-  appId: "1:48199959190:web:2efb9a6e00d3cd912678b7",
-  measurementId: "G-2KS3N6K7C2",
 };
 
 const app =

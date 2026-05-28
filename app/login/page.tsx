@@ -89,7 +89,6 @@ export default function LoginPage() {
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
 
-      console.log("Email login user:", result.user);
       alert("Login successful");
       router.push(getRedirectPath());
     } catch (error) {
@@ -113,7 +112,6 @@ export default function LoginPage() {
 
       const result = await signInWithPopup(auth, provider);
 
-      console.log("Google login user:", result.user);
       alert("Google Login Success");
       sessionStorage.removeItem(GOOGLE_REDIRECT_KEY);
       router.push(redirectPath);

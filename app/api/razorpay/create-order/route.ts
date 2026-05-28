@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
-import { doc, updateDoc } from "firebase/firestore/lite"
+import { doc, getDoc, updateDoc } from "firebase/firestore/lite"
 
 import { serverDb } from "@/lib/firebase-server"
 import { getRazorpayKeyId, razorpayFetch } from "@/lib/razorpay"
+import { assertOrderAccess, requireUserRequest } from "@/lib/admin-auth"
 
 type RazorpayOrder = {
   id: string
@@ -14,6 +15,7 @@ type RazorpayOrder = {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireUserRequest(request)
     const { orderId, amount, customer } = await request.json()
 
     if (!orderId || !amount) {
@@ -25,6 +27,22 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    const orderRef = doc(serverDb, "orders", orderId)
+    const orderSnap = await getDoc(orderRef)
+
+    if (!orderSnap.exists()) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Order not found.",
+        },
+        { status: 404 }
+      )
+    }
+
+    const order = orderSnap.data()
+    assertOrderAccess(auth, order, "pay for this order")
 
     const amountInPaise = Math.round(Number(amount) * 100)
     const razorpayOrder = await razorpayFetch<RazorpayOrder>("/orders", {
@@ -42,7 +60,7 @@ export async function POST(request: Request) {
       }),
     })
 
-    await updateDoc(doc(serverDb, "orders", orderId), {
+    await updateDoc(orderRef, {
       "payment.gateway": "razorpay",
       "payment.status": "pending",
       "payment.razorpayOrderId": razorpayOrder.id,
