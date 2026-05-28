@@ -11,6 +11,7 @@ import { Footer } from "@/components/footer"
 import { ProtectedRoute } from "@/components/protected-route"
 
 type BadgeOption = "new-arrival" | "most-selling" | "bestseller" | "none"
+const FIREBASE_OPERATION_TIMEOUT_MS = 45000
 
 const badgeOptions: Record<BadgeOption, { label: string | null; color: string | null }> = {
   "new-arrival": {
@@ -29,6 +30,35 @@ const badgeOptions: Record<BadgeOption, { label: string | null; color: string | 
     label: null,
     color: null,
   },
+}
+
+const withTimeout = async <T,>(promise: Promise<T>, message: string) => {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error(message)),
+          FIREBASE_OPERATION_TIMEOUT_MS
+        )
+      }),
+    ])
+  } finally {
+    if (timeout) clearTimeout(timeout)
+  }
+}
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error && error.message) return error.message
+
+  if (error && typeof error === "object") {
+    const record = error as Record<string, unknown>
+    if (typeof record.code === "string") return record.code
+  }
+
+  return "Unknown error"
 }
 
 export default function AddProductPage() {
@@ -51,6 +81,7 @@ export default function AddProductPage() {
     L: "0",
   })
   const [loading, setLoading] = useState(false)
+  const [saveStatus, setSaveStatus] = useState("")
 
   const mrpNumber = Number(mrp)
   const priceNumber = Number(price)
@@ -124,6 +155,7 @@ export default function AddProductPage() {
     }
 
     setLoading(true)
+    setSaveStatus("Preparing product...")
 
     try {
       const finalSlug = slug || createSlug(name)
@@ -141,17 +173,29 @@ export default function AddProductPage() {
         imageUrls = []
 
         for (const [index, file] of imageFiles.entries()) {
+          setSaveStatus(`Uploading image ${index + 1} of ${imageFiles.length}...`)
+
           const extension = file.name.split(".").pop()?.toLowerCase() || "jpg"
           const imageRef = ref(
             storage,
             `products/${finalSlug}-${index + 1}-${Date.now()}.${extension}`
           )
 
-          await uploadBytes(imageRef, file, {
-            contentType: file.type,
-          })
+          await withTimeout(
+            uploadBytes(imageRef, file, {
+              contentType: file.type,
+            }),
+            "Image upload timed out. Check Firebase Storage rules and your internet connection."
+          )
 
-          imageUrls.push(await getDownloadURL(imageRef))
+          setSaveStatus(`Getting image URL ${index + 1} of ${imageFiles.length}...`)
+
+          imageUrls.push(
+            await withTimeout(
+              getDownloadURL(imageRef),
+              "Image URL fetch timed out. Check Firebase Storage access."
+            )
+          )
         }
 
         imageUrl = imageUrls[0]
@@ -162,45 +206,50 @@ export default function AddProductPage() {
         return
       }
 
-      await setDoc(doc(db, "products", finalSlug), {
-        id: Date.now(),
-        slug: finalSlug,
-        name,
-        description,
-        longDescription,
+      setSaveStatus("Saving product details...")
 
-        mrp: mrpNumber,
-        price: priceNumber,
-        discountPercent,
+      await withTimeout(
+        setDoc(doc(db, "products", finalSlug), {
+          id: Date.now(),
+          slug: finalSlug,
+          name,
+          description,
+          longDescription,
 
-        image: imageUrl,
-        images: imageUrls,
-        badge: selectedBadge.label,
-        badgeColor: selectedBadge.color,
-        sizes: ["S", "M", "L"],
-        color,
-        colorHex,
-        details: [
-          "240 GSM premium heavyweight cotton",
-          "Oversized drop-shoulder fit",
-          "Ribbed crew neckline",
-          "Made in India",
-        ],
-        care: [
-          "Machine wash cold with like colors",
-          "Do not bleach",
-          "Iron inside out on low heat",
-        ],
-        inStock: totalStock > 0,
-        stock: totalStock,
-        stockBySize: {
-          S: Number(sizeStock.S || 0),
-          M: Number(sizeStock.M || 0),
-          L: Number(sizeStock.L || 0),
-        },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      })
+          mrp: mrpNumber,
+          price: priceNumber,
+          discountPercent,
+
+          image: imageUrl,
+          images: imageUrls,
+          badge: selectedBadge.label,
+          badgeColor: selectedBadge.color,
+          sizes: ["S", "M", "L"],
+          color,
+          colorHex,
+          details: [
+            "240 GSM premium heavyweight cotton",
+            "Oversized drop-shoulder fit",
+            "Ribbed crew neckline",
+            "Made in India",
+          ],
+          care: [
+            "Machine wash cold with like colors",
+            "Do not bleach",
+            "Iron inside out on low heat",
+          ],
+          inStock: totalStock > 0,
+          stock: totalStock,
+          stockBySize: {
+            S: Number(sizeStock.S || 0),
+            M: Number(sizeStock.M || 0),
+            L: Number(sizeStock.L || 0),
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }),
+        "Product save timed out. Check Firestore rules and your internet connection."
+      )
 
       alert("Product added successfully!")
 
@@ -222,8 +271,9 @@ export default function AddProductPage() {
       })
     } catch (error) {
       console.error(error)
-      alert("Failed to add product.")
+      alert(`Failed to add product: ${getErrorMessage(error)}`)
     } finally {
+      setSaveStatus("")
       setLoading(false)
     }
   }
@@ -461,7 +511,7 @@ export default function AddProductPage() {
                 className="w-full bg-foreground text-background py-4 font-black flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 <Save className="w-4 h-4" />
-                {loading ? "SAVING..." : "SAVE PRODUCT"}
+                {loading ? saveStatus || "SAVING..." : "SAVE PRODUCT"}
               </button>
             </form>
           </div>
